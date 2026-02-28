@@ -46,12 +46,16 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
+const updateSchema = createSchema.partial();
+
 router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  const parse = updateSchema.safeParse(req.body);
+  if (!parse.success) { res.status(400).json({ error: parse.error.flatten() }); return; }
   try {
     const playlist = await prisma.playlist.findUnique({ where: { id: req.params.id } });
     if (!playlist) { res.status(404).json({ error: 'Not found' }); return; }
     if (playlist.userId !== req.user!.id) { res.status(403).json({ error: 'Forbidden' }); return; }
-    const updated = await prisma.playlist.update({ where: { id: req.params.id }, data: req.body });
+    const updated = await prisma.playlist.update({ where: { id: req.params.id }, data: parse.data });
     res.json(updated);
   } catch {
     res.status(500).json({ error: 'Internal server error' });
