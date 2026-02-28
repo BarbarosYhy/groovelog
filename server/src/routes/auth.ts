@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { prisma } from '../db/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
@@ -33,20 +34,28 @@ router.post('/register', async (req: Request, res: Response) => {
     return;
   }
   const { email, username, password } = parse.data;
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ email }, { username }] },
-  });
-  if (existing) {
-    res.status(409).json({ error: 'Email or username already taken' });
-    return;
+  try {
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email }, { username }] },
+    });
+    if (existing) {
+      res.status(409).json({ error: 'Email or username already taken' });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await prisma.user.create({
+      data: { email, username, passwordHash },
+      select: { id: true, email: true, username: true, bio: true, avatarUrl: true, createdAt: true },
+    });
+    const token = makeToken({ id: user.id, username: user.username, email: user.email });
+    res.status(201).json({ token, user });
+  } catch (err: unknown) {
+    if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
+      res.status(409).json({ error: 'Email or username already taken' });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
   }
-  const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.create({
-    data: { email, username, passwordHash },
-    select: { id: true, email: true, username: true, bio: true, avatarUrl: true, createdAt: true },
-  });
-  const token = makeToken({ id: user.id, username: user.username, email: user.email });
-  res.status(201).json({ token, user });
 });
 
 router.post('/login', async (req: Request, res: Response) => {
@@ -56,31 +65,39 @@ router.post('/login', async (req: Request, res: Response) => {
     return;
   }
   const { email, password } = parse.data;
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    res.status(401).json({ error: 'Invalid credentials' });
-    return;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+    const token = makeToken({ id: user.id, username: user.username, email: user.email });
+    const { passwordHash: _, ...safeUser } = user;
+    res.json({ token, user: safeUser });
+  } catch (err: unknown) {
+    res.status(500).json({ error: 'Internal server error' });
   }
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) {
-    res.status(401).json({ error: 'Invalid credentials' });
-    return;
-  }
-  const token = makeToken({ id: user.id, username: user.username, email: user.email });
-  const { passwordHash: _, ...safeUser } = user;
-  res.json({ token, user: safeUser });
 });
 
 router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user!.id },
-    select: { id: true, email: true, username: true, bio: true, avatarUrl: true, createdAt: true },
-  });
-  if (!user) {
-    res.status(404).json({ error: 'User not found' });
-    return;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { id: true, email: true, username: true, bio: true, avatarUrl: true, createdAt: true },
+    });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    res.json(user);
+  } catch (err: unknown) {
+    res.status(500).json({ error: 'Internal server error' });
   }
-  res.json(user);
 });
 
 export default router;

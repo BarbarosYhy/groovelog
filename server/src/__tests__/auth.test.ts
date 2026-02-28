@@ -36,12 +36,17 @@ describe('POST /api/auth/register', () => {
 });
 
 describe('POST /api/auth/login', () => {
-  it('returns JWT on valid credentials', async () => {
+  beforeAll(async () => {
+    // Ensure the login test user exists regardless of test order
     await request(app).post('/api/auth/register').send({
       email: 'test-auth-login@example.com',
       username: 'testauthlogin',
       password: 'Password123!',
     });
+    // If already exists (from a prior run), the 409 is fine — user still exists
+  });
+
+  it('returns JWT on valid credentials', async () => {
     const res = await request(app).post('/api/auth/login').send({
       email: 'test-auth-login@example.com',
       password: 'Password123!',
