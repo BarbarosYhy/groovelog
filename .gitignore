@@ -3,3 +3,7 @@ dist/
 .env
 *.env.local
 pgdata/
+.DS_Store
+*.log
+coverage/
+.claude/
