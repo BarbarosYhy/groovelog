@@ -34,9 +34,9 @@ export interface SpotifyAlbum {
   external_urls: { spotify: string };
 }
 
-export async function searchAlbums(query: string, limit = 20): Promise<SpotifyAlbum[]> {
+export async function searchAlbums(query: string, limit = 10): Promise<SpotifyAlbum[]> {
   const token = await getSpotifyToken();
-  const params = new URLSearchParams({ q: query, type: 'album', limit: String(limit) });
+  const params = new URLSearchParams({ q: query, type: 'album', limit: String(limit), market: 'US' });
   const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
