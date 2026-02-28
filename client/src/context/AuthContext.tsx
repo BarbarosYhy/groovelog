@@ -25,11 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function login(newToken: string) {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
     const res = await api.get('/api/auth/me', {
       headers: { Authorization: `Bearer ${newToken}` },
     });
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
     setUser(res.data as User);
   }
 

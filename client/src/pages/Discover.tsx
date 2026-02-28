@@ -7,10 +7,11 @@ export default function Discover() {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
 
-  const { data: albums, isLoading } = useQuery({
+  const { data: albums, isLoading, isError } = useQuery({
     queryKey: ['albums-search', search],
     queryFn: () => albumsApi.search(search),
     enabled: search.length > 0,
+    retry: false,
   });
 
   return (
@@ -52,6 +53,12 @@ export default function Discover() {
           {albums.map((album: any) => (
             <AlbumCard key={album.spotifyAlbumId} album={album} />
           ))}
+        </div>
+      )}
+
+      {isError && (
+        <div className="rounded-xl border border-red-800 bg-red-900/20 p-6 text-center text-red-300">
+          Search failed. Check that the server is running and Spotify credentials are set.
         </div>
       )}
 
