@@ -30,7 +30,8 @@ function makeToken(user: { id: string; username: string; email: string }) {
 router.post('/register', async (req: Request, res: Response) => {
   const parse = registerSchema.safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.flatten() });
+    const msg = parse.error.issues.map((i) => i.message).join(', ');
+    res.status(400).json({ error: msg });
     return;
   }
   const { email, username, password } = parse.data;
@@ -61,7 +62,8 @@ router.post('/register', async (req: Request, res: Response) => {
 router.post('/login', async (req: Request, res: Response) => {
   const parse = loginSchema.safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.flatten() });
+    const msg = parse.error.issues.map((i) => i.message).join(', ');
+    res.status(400).json({ error: msg });
     return;
   }
   const { email, password } = parse.data;
