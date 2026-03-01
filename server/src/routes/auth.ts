@@ -15,7 +15,7 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1),
   password: z.string(),
 });
 
@@ -66,9 +66,16 @@ router.post('/login', async (req: Request, res: Response) => {
     res.status(400).json({ error: msg });
     return;
   }
-  const { email, password } = parse.data;
+  const { identifier, password } = parse.data;
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { username: identifier },
+        ],
+      },
+    });
     if (!user) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;

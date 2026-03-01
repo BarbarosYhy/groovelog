@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/auth';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const data = await authApi.login({ email, password });
+      const data = await authApi.login({ identifier, password });
       await login(data.token);
       navigate('/');
     } catch (err: unknown) {
@@ -58,11 +58,11 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && <div className="rounded-lg bg-red-900/30 border border-red-800 p-3 text-sm text-red-300">{error}</div>}
               <div>
-                <label className="block text-sm font-medium text-vinyl-muted mb-1">Email</label>
+                <label className="block text-sm font-medium text-vinyl-muted mb-1">Email or username</label>
                 <input
-                  type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                  type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full rounded-lg border border-vinyl-border bg-vinyl-card px-3 py-2 text-vinyl-text placeholder-vinyl-muted focus:border-vinyl-amber focus:outline-none"
-                  placeholder="you@example.com"
+                  placeholder="your@email.com or username"
                 />
               </div>
               <div>
