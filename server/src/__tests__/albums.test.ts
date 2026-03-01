@@ -23,3 +23,17 @@ describe('GET /api/albums/search', () => {
     }
   }, 10000);
 });
+
+describe('GET /api/albums/trending', () => {
+  it('returns 200 with an array', async () => {
+    const res = await request(app).get('/api/albums/trending');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it('respects limit query param', async () => {
+    const res = await request(app).get('/api/albums/trending?limit=3');
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeLessThanOrEqual(3);
+  });
+});
