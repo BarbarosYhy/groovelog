@@ -23,6 +23,7 @@ model User {
   listenLog     ListenLog[]
   playlists     Playlist[]
   reviewLikes         ReviewLike[]
+  commentLikes        CommentLike[]
   spotifyId           String?   @unique
   spotifyAccessToken  String?
   spotifyRefreshToken String?
@@ -92,6 +93,15 @@ model ReviewLike {
   @@id([userId, reviewId])
 }
 
+model CommentLike {
+  userId    String
+  commentId String
+  createdAt DateTime @default(now())
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  @@id([userId, commentId])
+}
+
 model Comment {
   id        String   @id @default(cuid())
   reviewId  String
@@ -100,6 +110,7 @@ model Comment {
   createdAt DateTime @default(now())
   review    Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes     CommentLike[]
 }
 
 model ListeningList {
