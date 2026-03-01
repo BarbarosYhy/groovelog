@@ -22,6 +22,13 @@ export default function AlbumDetail() {
     enabled: !!id,
   });
 
+  const { data: myReview } = useQuery({
+    queryKey: ['my-review', id],
+    queryFn: () => reviewsApi.getMyReview(id!),
+    enabled: !!user && !!id,
+    retry: false, // 404 is expected if no review
+  });
+
   const listenMutation = useMutation({
     mutationFn: (status: 'want' | 'listened') => listeningApi.addToList(id!, status),
   });
@@ -60,12 +67,21 @@ export default function AlbumDetail() {
           </div>
           <div className="flex gap-3 pt-2">
             {user && (
-              <Link
-                to={`/review/new?albumId=${id}`}
-                className="rounded-xl bg-vinyl-amber px-5 py-2 font-semibold text-black hover:bg-vinyl-amber-light transition-colors"
-              >
-                Write Review
-              </Link>
+              myReview ? (
+                <Link
+                  to={`/review/new?albumId=${id}&reviewId=${myReview.id}`}
+                  className="rounded-xl bg-vinyl-amber px-5 py-2 font-semibold text-black hover:bg-vinyl-amber-light transition-colors"
+                >
+                  Edit Review
+                </Link>
+              ) : (
+                <Link
+                  to={`/review/new?albumId=${id}`}
+                  className="rounded-xl bg-vinyl-amber px-5 py-2 font-semibold text-black hover:bg-vinyl-amber-light transition-colors"
+                >
+                  Write Review
+                </Link>
+              )
             )}
             <button
               onClick={() => listenMutation.mutate('want')}

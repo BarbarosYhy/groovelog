@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { albumsApi } from '../api/albums';
@@ -8,6 +8,8 @@ import StarRating from '../components/StarRating';
 export default function WriteReview() {
   const [searchParams] = useSearchParams();
   const albumId = searchParams.get('albumId') ?? '';
+  const reviewId = searchParams.get('reviewId') ?? '';
+  const isEditing = !!reviewId;
   const navigate = useNavigate();
 
   const [rating, setRating] = useState(0);
@@ -21,14 +23,39 @@ export default function WriteReview() {
     enabled: !!albumId,
   });
 
+  const { data: existingReview } = useQuery({
+    queryKey: ['review', reviewId],
+    queryFn: () => reviewsApi.getById(reviewId),
+    enabled: isEditing,
+  });
+
+  useEffect(() => {
+    if (existingReview) {
+      setRating(existingReview.rating);
+      setBody(existingReview.bodyText ?? '');
+      setListenDate(
+        existingReview.listenDate
+          ? new Date(existingReview.listenDate).toISOString().slice(0, 10)
+          : ''
+      );
+    }
+  }, [existingReview]);
+
   const mutation = useMutation({
-    mutationFn: () => reviewsApi.create({
-      reviewableType: 'album',
-      reviewableId: albumId,
-      rating,
-      bodyText: body || undefined,
-      listenDate: listenDate ? new Date(listenDate).toISOString() : undefined,
-    }),
+    mutationFn: () =>
+      isEditing
+        ? reviewsApi.update(reviewId, {
+            rating,
+            bodyText: body || undefined,
+            listenDate: listenDate ? new Date(listenDate).toISOString() : undefined,
+          })
+        : reviewsApi.create({
+            reviewableType: 'album',
+            reviewableId: albumId,
+            rating,
+            bodyText: body || undefined,
+            listenDate: listenDate ? new Date(listenDate).toISOString() : undefined,
+          }),
     onSuccess: () => navigate(`/album/${albumId}`),
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { error?: string } } };
@@ -38,7 +65,9 @@ export default function WriteReview() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-vinyl-text">Write a Review</h1>
+      <h1 className="text-2xl font-bold text-vinyl-text">
+        {isEditing ? 'Edit Review' : 'Write a Review'}
+      </h1>
 
       {album && (
         <div className="flex items-center gap-4 rounded-xl border border-vinyl-border bg-vinyl-surface p-4">
@@ -89,7 +118,7 @@ export default function WriteReview() {
           disabled={mutation.isPending}
           className="w-full rounded-xl bg-vinyl-amber py-3 font-semibold text-black hover:bg-vinyl-amber-light disabled:opacity-50 transition-colors"
         >
-          {mutation.isPending ? 'Submitting...' : 'Submit Review'}
+          {mutation.isPending ? 'Submitting...' : isEditing ? 'Update Review' : 'Submit Review'}
         </button>
       </form>
     </div>
