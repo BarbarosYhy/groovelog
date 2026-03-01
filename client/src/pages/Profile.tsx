@@ -5,6 +5,7 @@ import { friendsApi } from '../api/friends';
 import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import AlbumCard from '../components/AlbumCard';
+import ReviewCard from '../components/ReviewCard';
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
@@ -20,6 +21,12 @@ export default function Profile() {
   const { data: wantList } = useQuery({
     queryKey: ['want-list', username],
     queryFn: () => usersApi.getWantList(username!),
+    enabled: !!username,
+  });
+
+  const { data: recentReviews } = useQuery({
+    queryKey: ['user-reviews', username],
+    queryFn: () => usersApi.getReviews(username!),
     enabled: !!username,
   });
 
@@ -129,6 +136,12 @@ export default function Profile() {
             <span><strong className="text-vinyl-text">{profile._count.followers}</strong> followers</span>
             <span><strong className="text-vinyl-text">{profile._count.following}</strong> following</span>
           </div>
+          <div className="flex gap-4 mt-1 text-sm text-vinyl-muted">
+            {(profile as any).avgRating != null && (
+              <span>avg <strong className="text-vinyl-amber">{((profile as any).avgRating as number).toFixed(1)}★</strong></span>
+            )}
+            <span><strong className="text-vinyl-text">{(profile as any).friendCount ?? 0}</strong> friends</span>
+          </div>
         </div>
         {!isMe && me && (
           <div className="flex items-center gap-2">
@@ -176,7 +189,15 @@ export default function Profile() {
       {/* Recent Reviews */}
       <div>
         <h2 className="text-xl font-bold text-vinyl-text mb-4">Recent Reviews</h2>
-        <p className="text-vinyl-muted text-sm">Reviews will appear here.</p>
+        {recentReviews && recentReviews.length > 0 ? (
+          <div className="space-y-4">
+            {recentReviews.map((review: any) => (
+              <ReviewCard key={review.id} review={review} showAlbum />
+            ))}
+          </div>
+        ) : (
+          <p className="text-vinyl-muted text-sm">No reviews yet.</p>
+        )}
       </div>
     </div>
   );
