@@ -29,6 +29,8 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
 
 router.post('/:id/like', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
+    const comment = await prisma.comment.findUnique({ where: { id: req.params.id } });
+    if (!comment) { res.status(404).json({ error: 'Comment not found' }); return; }
     const existing = await prisma.commentLike.findUnique({
       where: { userId_commentId: { userId: req.user!.id, commentId: req.params.id } },
     });
