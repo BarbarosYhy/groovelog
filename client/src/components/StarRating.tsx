@@ -23,7 +23,7 @@ export default function StarRating({ value, onChange, readonly = false, size = '
             <span className="text-vinyl-border">★</span>
             {(full || half) && (
               <span
-                className="absolute inset-0 overflow-hidden text-vinyl-amber"
+                className="absolute inset-0 overflow-hidden text-vinyl-amber pointer-events-none"
                 style={{ width: half ? '50%' : '100%' }}
               >
                 ★
