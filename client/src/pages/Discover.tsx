@@ -8,6 +8,50 @@ import HorizontalShelf from '../components/HorizontalShelf';
 import ReviewCard from '../components/ReviewCard';
 import { Link } from 'react-router-dom';
 
+const COMMUNITY_FEED_LIMIT = 10;
+
+interface CommunitySectionProps {
+  sort: 'new' | 'hot';
+  onSortChange: (s: 'new' | 'hot') => void;
+  reviews: any[];
+}
+
+function CommunityFeed({ sort, onSortChange, reviews }: CommunitySectionProps) {
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-vinyl-text">Community</h2>
+        <div className="flex gap-1 rounded-xl bg-vinyl-surface border border-vinyl-border p-1">
+          {(['new', 'hot'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => onSortChange(s)}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors capitalize ${
+                sort === s
+                  ? 'bg-vinyl-amber text-black'
+                  : 'text-vinyl-muted hover:text-vinyl-text'
+              }`}
+            >
+              {s === 'hot' ? '🔥 Hot' : '✨ New'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {reviews.length > 0 ? (
+        <div className="space-y-4">
+          {reviews.slice(0, COMMUNITY_FEED_LIMIT).map((review) => (
+            <ReviewCard key={review.id} review={review} showAlbum />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-vinyl-border p-10 text-center text-sm text-vinyl-muted">
+          No reviews yet. Be the first to review an album!
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Discover() {
   const { user } = useAuth();
   const spotifyConnected = !!user?.spotifyId;
@@ -68,40 +112,6 @@ export default function Discover() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const CommunitySection = (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-vinyl-text">Community</h2>
-        <div className="flex gap-1 rounded-xl bg-vinyl-surface border border-vinyl-border p-1">
-          {(['new', 'hot'] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setCommunitySort(s)}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors capitalize ${
-                communitySort === s
-                  ? 'bg-vinyl-amber text-black'
-                  : 'text-vinyl-muted hover:text-vinyl-text'
-              }`}
-            >
-              {s === 'hot' ? '🔥 Hot' : '✨ New'}
-            </button>
-          ))}
-        </div>
-      </div>
-      {communityReviews.length > 0 ? (
-        <div className="space-y-4">
-          {communityReviews.slice(0, 10).map((review: any) => (
-            <ReviewCard key={review.id} review={review} showAlbum />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-vinyl-border p-10 text-center text-sm text-vinyl-muted">
-          No reviews yet. Be the first to review an album!
-        </div>
-      )}
-    </section>
-  );
-
   // Not connected — prompt to connect
   if (!user || !spotifyConnected) {
     return (
@@ -113,7 +123,7 @@ export default function Discover() {
             subtitle="· Albums your friends have reviewed"
           />
         )}
-        {CommunitySection}
+        <CommunityFeed sort={communitySort} onSortChange={setCommunitySort} reviews={communityReviews} />
         <div className="flex flex-col items-center justify-center py-16 space-y-5 text-center">
           <div className="w-16 h-16 rounded-full bg-[#1DB954]/10 flex items-center justify-center">
             <svg className="w-8 h-8" viewBox="0 0 24 24" fill="#1DB954">
@@ -189,7 +199,7 @@ export default function Discover() {
         />
       )}
 
-      {CommunitySection}
+      <CommunityFeed sort={communitySort} onSortChange={setCommunitySort} reviews={communityReviews} />
     </div>
   );
 }
