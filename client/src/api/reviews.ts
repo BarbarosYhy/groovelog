@@ -23,4 +23,6 @@ export const reviewsApi = {
     api.post('/api/reviews', { reviewableType: 'track', reviewableId: trackId, rating }).then((r) => r.data),
   updateTrackRating: (reviewId: string, rating: number) =>
     api.put(`/api/reviews/${reviewId}`, { rating }).then((r) => r.data),
+  getCommunity: (sort: 'new' | 'hot') =>
+    api.get(`/api/reviews/community?sort=${sort}`).then((r) => r.data),
 };
