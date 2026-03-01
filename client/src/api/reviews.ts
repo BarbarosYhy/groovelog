@@ -4,8 +4,11 @@ export const reviewsApi = {
   create: (data: object) => api.post('/api/reviews', data).then((r) => r.data),
   getForAlbum: (albumId: string) =>
     api.get(`/api/reviews/album/${albumId}`).then((r) => r.data),
-  getById: (id: string) => api.get(`/api/reviews/${id}`).then((r) => r.data),
-  update: (id: string, data: object) =>
+  getMyReview: (albumId: string) =>
+    api.get(`/api/reviews/mine?albumId=${albumId}`).then((r) => r.data),
+  getById: (id: string) =>
+    api.get(`/api/reviews/${id}`).then((r) => r.data),
+  update: (id: string, data: Partial<{ rating: number; bodyText: string; listenDate: string }>) =>
     api.put(`/api/reviews/${id}`, data).then((r) => r.data),
   delete: (id: string) => api.delete(`/api/reviews/${id}`),
   toggleLike: (id: string) =>
