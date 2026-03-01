@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../db/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { getUserSpotifyToken } from './spotify';
 
 const router = Router();
 
@@ -68,6 +69,141 @@ router.get('/:username/reviews', async (req: Request, res: Response) => {
       take: 10,
     });
     res.json(reviews);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/:username/top-genres', async (req: Request, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true, spotifyAccessToken: true },
+    });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+    if (!user.spotifyAccessToken) { res.json({ connected: false }); return; }
+
+    let accessToken: string;
+    try {
+      accessToken = await getUserSpotifyToken(user.id);
+    } catch {
+      res.json({ connected: false });
+      return;
+    }
+
+    const tracksRes = await fetch(
+      'https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term',
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!tracksRes.ok) { res.json({ connected: false }); return; }
+
+    const tracksData = (await tracksRes.json()) as {
+      items: Array<{ artists: Array<{ id: string }> }>;
+    };
+
+    const artistIds = [
+      ...new Set(tracksData.items.flatMap((t) => t.artists.map((a) => a.id))),
+    ].slice(0, 50);
+
+    if (artistIds.length === 0) { res.json({ connected: true, genres: [] }); return; }
+
+    const artistsRes = await fetch(
+      `https://api.spotify.com/v1/artists?ids=${artistIds.join(',')}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!artistsRes.ok) { res.json({ connected: true, genres: [] }); return; }
+
+    const artistsData = (await artistsRes.json()) as {
+      artists: Array<{ genres: string[] }>;
+    };
+
+    const counts: Record<string, number> = {};
+    for (const artist of artistsData.artists) {
+      for (const genre of artist.genres) {
+        counts[genre] = (counts[genre] ?? 0) + 1;
+      }
+    }
+
+    const total = Object.values(counts).reduce((s, v) => s + v, 0);
+    if (total === 0) { res.json({ connected: true, genres: [] }); return; }
+
+    const top5 = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: Math.round((count / total) * 100),
+      }));
+
+    res.json({ connected: true, genres: top5 });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/:username/compatibility', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const other = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true },
+    });
+    if (!other) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const myId = req.user!.id;
+    const otherId = other.id;
+
+    if (myId === otherId) {
+      res.json({ score: 100, sharedGenres: [], myTopGenre: null, theirTopGenre: null });
+      return;
+    }
+
+    const [myReviews, theirReviews] = await Promise.all([
+      prisma.review.findMany({
+        where: { userId: myId, reviewableType: 'album' },
+        include: { albumCache: { select: { genres: true } } },
+      }),
+      prisma.review.findMany({
+        where: { userId: otherId, reviewableType: 'album' },
+        include: { albumCache: { select: { genres: true } } },
+      }),
+    ]);
+
+    function buildGenreMap(reviews: typeof myReviews): Record<string, number> {
+      const map: Record<string, number> = {};
+      for (const r of reviews) {
+        for (const genre of r.albumCache?.genres ?? []) {
+          map[genre] = (map[genre] ?? 0) + 1;
+        }
+      }
+      return map;
+    }
+
+    const myMap = buildGenreMap(myReviews);
+    const theirMap = buildGenreMap(theirReviews);
+
+    const allGenres = new Set([...Object.keys(myMap), ...Object.keys(theirMap)]);
+
+    let sumMin = 0;
+    let sumMax = 0;
+    for (const g of allGenres) {
+      const a = myMap[g] ?? 0;
+      const b = theirMap[g] ?? 0;
+      sumMin += Math.min(a, b);
+      sumMax += Math.max(a, b);
+    }
+
+    const score = sumMax === 0 ? 0 : Math.round((sumMin / sumMax) * 100);
+
+    const sharedGenres = [...allGenres]
+      .filter((g) => (myMap[g] ?? 0) > 0 && (theirMap[g] ?? 0) > 0)
+      .sort((a, b) => Math.min(theirMap[b] ?? 0, myMap[b] ?? 0) - Math.min(theirMap[a] ?? 0, myMap[a] ?? 0))
+      .slice(0, 3);
+
+    const myTopGenre = Object.entries(myMap).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const theirTopGenre = Object.entries(theirMap).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    res.json({ score, sharedGenres, myTopGenre, theirTopGenre });
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
