@@ -4,6 +4,24 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+router.get('/search', requireAuth, async (req: AuthRequest, res: Response) => {
+  const q = (req.query.q as string ?? '').trim();
+  if (q.length < 2) { res.json([]); return; }
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        username: { contains: q, mode: 'insensitive' },
+        NOT: { id: req.user!.id },
+      },
+      select: { id: true, username: true, avatarUrl: true },
+      take: 10,
+    });
+    res.json(users);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:username/want-list', async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
