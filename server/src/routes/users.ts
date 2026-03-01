@@ -125,7 +125,7 @@ router.get('/:username/top-genres', async (req: Request, res: Response) => {
 
     const counts: Record<string, number> = {};
     for (const artist of topArtists) {
-      for (const genre of artist.genres) {
+      for (const genre of (artist.genres ?? [])) {
         counts[genre] = (counts[genre] ?? 0) + 1;
       }
     }
@@ -143,7 +143,8 @@ router.get('/:username/top-genres', async (req: Request, res: Response) => {
       }));
 
     res.json({ connected: true, genres: top5, timeLabel });
-  } catch {
+  } catch (err) {
+    console.error('[top-genres]', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
