@@ -36,4 +36,10 @@ describe('GET /api/albums/trending', () => {
     expect(res.status).toBe(200);
     expect(res.body.length).toBeLessThanOrEqual(3);
   });
+
+  it('ignores negative limit and returns a safe result', async () => {
+    const res = await request(app).get('/api/albums/trending?limit=-5');
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeLessThanOrEqual(20);
+  });
 });

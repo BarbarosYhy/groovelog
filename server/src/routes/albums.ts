@@ -19,7 +19,7 @@ router.get('/search', async (req: Request, res: Response) => {
 });
 
 router.get('/trending', async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(req.query.limit as string) || 6, 20);
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit as string) || 6), 20);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   try {
     const grouped = await prisma.review.groupBy({
