@@ -86,7 +86,7 @@ router.get('/:username', async (req: AuthRequest, res: Response) => {
 
     const [avgRatingResult, friendCount] = await Promise.all([
       prisma.review.aggregate({
-        where: { userId: user.id, reviewableType: 'album', rating: { not: null as any } },
+        where: { userId: user.id, reviewableType: 'album' },
         _avg: { rating: true },
       }),
       prisma.friendship.count({
