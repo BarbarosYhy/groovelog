@@ -61,7 +61,7 @@ router.get('/:username/reviews', async (req: Request, res: Response) => {
       where: { userId: user.id },
       include: {
         user: { select: { id: true, username: true, avatarUrl: true } },
-        albumCache: { select: { name: true, artist: true, coverUrl: true } },
+        albumCache: { select: { spotifyAlbumId: true, name: true, artist: true, coverUrl: true } },
         _count: { select: { likes: true, comments: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -143,7 +143,7 @@ router.get('/:id/feed', requireAuth, async (req: AuthRequest, res: Response) => 
       where: { userId: { in: friendIds } },
       include: {
         user: { select: { id: true, username: true, avatarUrl: true } },
-        albumCache: { select: { name: true, artist: true, coverUrl: true } },
+        albumCache: { select: { spotifyAlbumId: true, name: true, artist: true, coverUrl: true } },
         _count: { select: { likes: true, comments: true } },
       },
       orderBy: { createdAt: 'desc' },
