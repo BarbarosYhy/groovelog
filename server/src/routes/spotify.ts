@@ -159,7 +159,14 @@ router.get('/recently-played', requireAuth, async (req: AuthRequest, res: Respon
 
     const data = (await recentRes.json()) as {
       items: Array<{
-        track: { album: { id: string; name: string } };
+        track: {
+          album: {
+            id: string;
+            name: string;
+            images: { url: string }[];
+            artists: { name: string }[];
+          };
+        };
         played_at: string;
       }>;
     };
@@ -175,6 +182,8 @@ router.get('/recently-played', requireAuth, async (req: AuthRequest, res: Respon
       .map((item) => ({
         albumId: item.track.album.id,
         albumName: item.track.album.name,
+        coverUrl: item.track.album.images[0]?.url ?? '',
+        artist: item.track.album.artists[0]?.name ?? '',
         playedAt: item.played_at,
       }));
 

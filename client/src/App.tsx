@@ -17,6 +17,7 @@ import SpotifySuccess from './pages/SpotifySuccess';
 import SpotifyError from './pages/SpotifyError';
 import ReviewDetail from './pages/ReviewDetail';
 import Settings from './pages/Settings';
+import Search from './pages/Search';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ export default function App() {
                 }
               />
               <Route path="/discover" element={<Discover />} />
+              <Route path="/search" element={<Search />} />
               <Route path="/album/:id" element={<AlbumDetail />} />
               <Route path="/playlist/:id" element={<PlaylistDetail />} />
               <Route
