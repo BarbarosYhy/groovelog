@@ -62,6 +62,10 @@ router.get('/callback', async (req: Request, res: Response) => {
     const profileRes = await fetch('https://api.spotify.com/v1/me', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
+    if (!profileRes.ok) {
+      res.redirect(`${clientUrl}/spotify-error`);
+      return;
+    }
     const profile = (await profileRes.json()) as { id: string };
 
     // Save tokens to DB (state = userId from JWT)
