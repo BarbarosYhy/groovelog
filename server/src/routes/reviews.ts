@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
@@ -9,6 +10,12 @@ const reviewSchema = z.object({
   reviewableType: z.enum(['album', 'playlist']),
   reviewableId: z.string(),
   rating: z.number().min(0.5).max(5).multipleOf(0.5),
+  bodyText: z.string().max(5000).optional(),
+  listenDate: z.string().datetime().optional(),
+});
+
+const updateReviewSchema = z.object({
+  rating: z.number().min(0.5).max(5).multipleOf(0.5).optional(),
   bodyText: z.string().max(5000).optional(),
   listenDate: z.string().datetime().optional(),
 });
@@ -49,7 +56,11 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
       },
     });
     res.status(201).json(review);
-  } catch {
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      res.status(409).json({ error: 'You have already reviewed this item' });
+      return;
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -122,7 +133,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     const review = await prisma.review.findUnique({ where: { id: req.params.id } });
     if (!review) { res.status(404).json({ error: 'Not found' }); return; }
     if (review.userId !== req.user!.id) { res.status(403).json({ error: 'Forbidden' }); return; }
-    const parse = reviewSchema.partial().safeParse(req.body);
+    const parse = updateReviewSchema.safeParse(req.body);
     if (!parse.success) { res.status(400).json({ error: parse.error.flatten() }); return; }
     const updated = await prisma.review.update({ where: { id: req.params.id }, data: parse.data });
     res.json(updated);

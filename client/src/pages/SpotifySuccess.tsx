@@ -1,12 +1,21 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function SpotifySuccess() {
   const navigate = useNavigate();
+  const { login, token } = useAuth();
+
   useEffect(() => {
-    const t = setTimeout(() => navigate('/'), 2000);
-    return () => clearTimeout(t);
-  }, [navigate]);
+    const refresh = async () => {
+      if (token) {
+        try { await login(token); } catch { /* token still valid, user stays logged in */ }
+      }
+      const t = setTimeout(() => navigate('/'), 1500);
+      return () => clearTimeout(t);
+    };
+    refresh();
+  }, []);
 
   return (
     <div className="min-h-screen bg-vinyl-bg flex items-center justify-center">

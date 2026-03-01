@@ -57,10 +57,9 @@ router.get('/trending', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  // Try cache first
-  let cached = await prisma.albumCache.findUnique({ where: { spotifyAlbumId: id } });
-  if (!cached) {
-    try {
+  try {
+    let cached = await prisma.albumCache.findUnique({ where: { spotifyAlbumId: id } });
+    if (!cached) {
       const album = await getAlbum(id);
       const normalized = normalizeAlbum(album);
       cached = await prisma.albumCache.upsert({
@@ -68,24 +67,22 @@ router.get('/:id', async (req: Request, res: Response) => {
         update: { cachedAt: new Date() },
         create: normalized,
       });
-    } catch {
-      res.status(404).json({ error: 'Album not found' });
-      return;
     }
+
+    const agg = await prisma.review.aggregate({
+      where: { reviewableType: 'album', reviewableId: id },
+      _avg: { rating: true },
+      _count: { id: true },
+    });
+
+    res.json({
+      ...cached,
+      avgRating: agg._avg.rating,
+      reviewCount: agg._count.id,
+    });
+  } catch {
+    res.status(404).json({ error: 'Album not found' });
   }
-
-  // Avg rating
-  const agg = await prisma.review.aggregate({
-    where: { reviewableType: 'album', reviewableId: id },
-    _avg: { rating: true },
-    _count: { id: true },
-  });
-
-  res.json({
-    ...cached,
-    avgRating: agg._avg.rating,
-    reviewCount: agg._count.id,
-  });
 });
 
 export default router;
