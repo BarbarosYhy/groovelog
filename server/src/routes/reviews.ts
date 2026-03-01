@@ -130,6 +130,27 @@ router.get('/album/:albumId', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get('/community', async (req: AuthRequest, res: Response) => {
+  const sort = (req.query.sort as string) === 'hot' ? 'hot' : 'new';
+  try {
+    const reviews = await prisma.review.findMany({
+      where: { reviewableType: 'album' },
+      include: {
+        user: { select: { id: true, username: true, avatarUrl: true } },
+        albumCache: { select: { spotifyAlbumId: true, name: true, artist: true, coverUrl: true } },
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: sort === 'hot'
+        ? { likes: { _count: 'desc' } }
+        : { createdAt: 'desc' },
+      take: 20,
+    });
+    res.json(reviews);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const review = await prisma.review.findUnique({
