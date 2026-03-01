@@ -31,7 +31,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
       },
     });
     if (existing) {
-      res.status(409).json({ error: 'You have already reviewed this album' });
+      res.status(409).json({ error: 'You have already reviewed this item' });
       return;
     }
     const review = await prisma.review.create({
