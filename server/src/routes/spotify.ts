@@ -184,4 +184,22 @@ router.get('/recently-played', requireAuth, async (req: AuthRequest, res: Respon
   }
 });
 
+// Disconnect Spotify — clear all Spotify fields from user
+router.delete('/disconnect', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        spotifyId: null,
+        spotifyAccessToken: null,
+        spotifyRefreshToken: null,
+        spotifyTokenExpiry: null,
+      },
+    });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

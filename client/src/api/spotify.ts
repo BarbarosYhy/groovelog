@@ -5,6 +5,7 @@ export const spotifyApi = {
     const token = localStorage.getItem('token');
     window.location.href = `${import.meta.env.VITE_API_URL}/api/spotify/connect?token=${token}`;
   },
+  disconnect: () => api.delete('/api/spotify/disconnect').then((r) => r.data),
   getRecentlyPlayed: () =>
     api.get('/api/spotify/recently-played').then((r) => r.data as Array<{
       albumId: string;
