@@ -16,9 +16,31 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const comment = await prisma.comment.create({
       data: { ...parse.data, userId: req.user!.id },
-      include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+      include: {
+        user: { select: { id: true, username: true, avatarUrl: true } },
+        _count: { select: { likes: true } },
+      },
     });
     res.status(201).json(comment);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/:id/like', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const existing = await prisma.commentLike.findUnique({
+      where: { userId_commentId: { userId: req.user!.id, commentId: req.params.id } },
+    });
+    if (existing) {
+      await prisma.commentLike.delete({
+        where: { userId_commentId: { userId: req.user!.id, commentId: req.params.id } },
+      });
+      res.json({ liked: false });
+    } else {
+      await prisma.commentLike.create({ data: { userId: req.user!.id, commentId: req.params.id } });
+      res.json({ liked: true });
+    }
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }

@@ -137,7 +137,10 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       include: {
         user: { select: { id: true, username: true, avatarUrl: true } },
         comments: {
-          include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+          include: {
+            user: { select: { id: true, username: true, avatarUrl: true } },
+            _count: { select: { likes: true } },
+          },
           orderBy: { createdAt: 'asc' },
         },
         _count: { select: { likes: true } },
