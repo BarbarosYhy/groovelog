@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { albumsApi } from '../api/albums';
@@ -10,6 +11,7 @@ import ReviewCard from '../components/ReviewCard';
 export default function AlbumDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const [listenStatus, setListenStatus] = useState<'want' | 'listened' | null>(null);
 
   const { data: album, isLoading: albumLoading } = useQuery({
     queryKey: ['album', id],
@@ -31,6 +33,7 @@ export default function AlbumDetail() {
 
   const listenMutation = useMutation({
     mutationFn: (status: 'want' | 'listened') => listeningApi.addToList(id!, status),
+    onSuccess: (_data, status) => setListenStatus(status),
   });
 
   if (albumLoading) return (
@@ -83,18 +86,42 @@ export default function AlbumDetail() {
                 </Link>
               )
             )}
-            <button
-              onClick={() => listenMutation.mutate('want')}
-              className="rounded-xl border border-vinyl-border px-5 py-2 text-sm hover:border-vinyl-amber/50 transition-colors"
-            >
-              Want to Listen
-            </button>
-            <button
-              onClick={() => listenMutation.mutate('listened')}
-              className="rounded-xl border border-vinyl-border px-5 py-2 text-sm hover:border-vinyl-amber/50 transition-colors"
-            >
-              Mark Listened
-            </button>
+          </div>
+          <div className="pt-2">
+            {user ? (
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={() => listenMutation.mutate('want')}
+                  disabled={listenMutation.isPending}
+                  className={`rounded-xl border px-5 py-2 text-sm transition-colors disabled:opacity-50 ${
+                    listenStatus === 'want'
+                      ? 'border-vinyl-amber bg-vinyl-amber/10 text-vinyl-amber'
+                      : 'border-vinyl-border hover:border-vinyl-amber/50 text-vinyl-muted hover:text-vinyl-text'
+                  }`}
+                >
+                  {listenStatus === 'want' ? '✓ Want to Listen' : 'Want to Listen'}
+                </button>
+                <button
+                  onClick={() => listenMutation.mutate('listened')}
+                  disabled={listenMutation.isPending}
+                  className={`rounded-xl border px-5 py-2 text-sm transition-colors disabled:opacity-50 ${
+                    listenStatus === 'listened'
+                      ? 'border-vinyl-amber bg-vinyl-amber/10 text-vinyl-amber'
+                      : 'border-vinyl-border hover:border-vinyl-amber/50 text-vinyl-muted hover:text-vinyl-text'
+                  }`}
+                >
+                  {listenStatus === 'listened' ? '✓ Listened' : 'Mark Listened'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-vinyl-muted">
+                <Link to="/login" className="text-vinyl-amber hover:underline">Log in</Link>{' '}
+                to track this album
+              </p>
+            )}
+            {listenMutation.isError && (
+              <p className="text-sm text-red-400 mt-2">Failed to update list. Try again.</p>
+            )}
           </div>
         </div>
       </div>
