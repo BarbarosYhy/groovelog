@@ -13,6 +13,8 @@ import Profile from './pages/Profile';
 import ListeningLists from './pages/ListeningLists';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import SpotifySuccess from './pages/SpotifySuccess';
+import SpotifyError from './pages/SpotifyError';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +44,8 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/spotify-success" element={<SpotifySuccess />} />
+            <Route path="/spotify-error" element={<SpotifyError />} />
             <Route element={<Layout />}>
               <Route
                 path="/"

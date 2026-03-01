@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { albumsApi } from '../api/albums';
 import { reviewsApi } from '../api/reviews';
+import { spotifyApi } from '../api/spotify';
+import { useAuth } from '../context/AuthContext';
 import StarRating from '../components/StarRating';
 
 export default function WriteReview() {
@@ -11,6 +13,10 @@ export default function WriteReview() {
   const reviewId = searchParams.get('reviewId') ?? '';
   const isEditing = !!reviewId;
   const navigate = useNavigate();
+
+  const { user } = useAuth();
+  const spotifyConnected = !!user?.spotifyId;
+  const [fetchingSpotify, setFetchingSpotify] = useState(false);
 
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState('');
@@ -63,6 +69,22 @@ export default function WriteReview() {
     },
   });
 
+  async function fetchListenDate() {
+    if (!albumId) return;
+    setFetchingSpotify(true);
+    try {
+      const history = await spotifyApi.getRecentlyPlayed();
+      const match = history.find((item) => item.albumId === albumId);
+      if (match) {
+        setListenDate(new Date(match.playedAt).toISOString().slice(0, 10));
+      }
+    } catch {
+      // silently fail — user can set date manually
+    } finally {
+      setFetchingSpotify(false);
+    }
+  }
+
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-vinyl-text">
@@ -104,7 +126,19 @@ export default function WriteReview() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-vinyl-muted mb-2">Listen date (optional)</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-vinyl-muted">Listen date (optional)</label>
+            {spotifyConnected && (
+              <button
+                type="button"
+                onClick={fetchListenDate}
+                disabled={fetchingSpotify}
+                className="text-xs text-[#1DB954] hover:underline disabled:opacity-50 transition-opacity"
+              >
+                {fetchingSpotify ? 'Fetching...' : '↑ Fetch from Spotify'}
+              </button>
+            )}
+          </div>
           <input
             type="date"
             value={listenDate}
