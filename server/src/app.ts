@@ -7,6 +7,7 @@ import commentRoutes from './routes/comments';
 import userRoutes from './routes/users';
 import playlistRoutes from './routes/playlists';
 import listeningRoutes from './routes/listening';
+import spotifyRouter from './routes/spotify';
 
 const app = express();
 
@@ -22,5 +23,6 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/listening', listeningRoutes);
+app.use('/api/spotify', spotifyRouter);
 
 export default app;
