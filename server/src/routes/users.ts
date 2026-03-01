@@ -50,6 +50,29 @@ router.get('/:username/want-list', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/:username/reviews', async (req: Request, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true },
+    });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+    const reviews = await prisma.review.findMany({
+      where: { userId: user.id },
+      include: {
+        user: { select: { id: true, username: true, avatarUrl: true } },
+        albumCache: { select: { name: true, artist: true, coverUrl: true } },
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    res.json(reviews);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:username', async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
