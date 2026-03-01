@@ -16,4 +16,12 @@ export const usersApi = {
       releaseYear: number;
       addedAt: string;
     }>),
+  search: (q: string) =>
+    api.get(`/api/users/search?q=${encodeURIComponent(q)}`).then((r) => r.data as Array<{
+      id: string;
+      username: string;
+      avatarUrl: string | null;
+    }>),
+  getReviews: (username: string) =>
+    api.get(`/api/users/${username}/reviews`).then((r) => r.data),
 };

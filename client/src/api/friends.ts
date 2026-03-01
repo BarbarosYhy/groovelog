@@ -26,4 +26,13 @@ export const friendsApi = {
     api.post(`/api/friends/accept/${friendshipId}`).then((r) => r.data),
   remove: (userId: string) =>
     api.delete(`/api/friends/${userId}`).then((r) => r.data),
+  getRecentReviews: () =>
+    api.get('/api/friends/recent-reviews').then((r) => r.data as Array<{
+      spotifyAlbumId: string;
+      name: string;
+      artist: string;
+      coverUrl: string;
+      releaseYear: number;
+      genres: string[];
+    }>),
 };
