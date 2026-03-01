@@ -121,6 +121,51 @@ router.post('/accept/:friendshipId', requireAuth, async (req: AuthRequest, res: 
   }
 });
 
+// Get albums recently reviewed by friends (for Discover shelf)
+router.get('/recent-reviews', requireAuth, async (req: AuthRequest, res: Response) => {
+  const myId = req.user!.id;
+  try {
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        status: 'accepted',
+        OR: [{ requesterId: myId }, { addresseeId: myId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const friendIds = friendships.map((f) =>
+      f.requesterId === myId ? f.addresseeId : f.requesterId
+    );
+    if (friendIds.length === 0) { res.json([]); return; }
+
+    const reviews = await prisma.review.findMany({
+      where: { userId: { in: friendIds }, reviewableType: 'album' },
+      include: { albumCache: true },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+
+    const seen = new Set<string>();
+    const albums: object[] = [];
+    for (const r of reviews) {
+      if (!seen.has(r.reviewableId) && r.albumCache) {
+        seen.add(r.reviewableId);
+        albums.push({
+          spotifyAlbumId: r.reviewableId,
+          name: r.albumCache.name,
+          artist: r.albumCache.artist,
+          coverUrl: r.albumCache.coverUrl,
+          releaseYear: r.albumCache.releaseYear,
+          genres: r.albumCache.genres,
+        });
+        if (albums.length >= 15) break;
+      }
+    }
+    res.json(albums);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Decline / cancel / unfriend
 router.delete('/:userId', requireAuth, async (req: AuthRequest, res: Response) => {
   const otherId = req.params.userId;
