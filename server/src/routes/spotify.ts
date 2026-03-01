@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../db/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
@@ -7,16 +8,24 @@ const router = Router();
 const SCOPES = 'user-read-recently-played';
 
 // Redirect user to Spotify OAuth consent screen
-router.get('/connect', requireAuth, (req: AuthRequest, res: Response) => {
-  const state = req.user!.id;
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: process.env.SPOTIFY_CLIENT_ID!,
-    scope: SCOPES,
-    redirect_uri: process.env.SPOTIFY_REDIRECT_URI!,
-    state,
-  });
-  res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+// Token is passed as query param because browsers don't send custom headers on redirects
+router.get('/connect', (req: Request, res: Response) => {
+  const token = req.query.token as string;
+  if (!token) { res.status(401).json({ error: 'No token provided' }); return; }
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+    const state = payload.id;
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: process.env.SPOTIFY_CLIENT_ID!,
+      scope: SCOPES,
+      redirect_uri: process.env.SPOTIFY_REDIRECT_URI!,
+      state,
+    });
+    res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
 });
 
 // Handle OAuth callback from Spotify
