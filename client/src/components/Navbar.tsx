@@ -1,5 +1,7 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { friendsApi } from '../api/friends';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -10,6 +12,14 @@ export default function Navbar() {
     location.pathname === path
       ? 'text-vinyl-text font-semibold'
       : 'text-vinyl-muted hover:text-vinyl-text';
+
+  const { data: pendingRequests = [] } = useQuery({
+    queryKey: ['friend-requests'],
+    queryFn: () => friendsApi.getRequests(),
+    enabled: !!user,
+    staleTime: 60 * 1000,
+  });
+  const pendingCount = pendingRequests.length;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-vinyl-border/60 bg-vinyl-bg/80 backdrop-blur-xl">
@@ -48,6 +58,23 @@ export default function Navbar() {
           >
             Discover
           </Link>
+          {user && (
+            <Link
+              to="/friends"
+              className={`rounded-lg px-4 py-1.5 text-sm transition-colors flex items-center gap-1.5 ${
+                location.pathname === '/friends'
+                  ? 'bg-vinyl-card text-vinyl-text font-semibold shadow-sm'
+                  : 'text-vinyl-muted hover:text-vinyl-text'
+              }`}
+            >
+              Friends
+              {pendingCount > 0 && (
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-vinyl-amber text-black text-[10px] font-bold leading-none">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
           <Link
             to="/search"
             className={`rounded-lg px-4 py-1.5 text-sm transition-colors flex items-center gap-1.5 ${
