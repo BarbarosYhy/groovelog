@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import AlbumCard from '../components/AlbumCard';
 import ReviewCard from '../components/ReviewCard';
+import GenreRadar from '../components/GenreRadar';
+import CompatibilityMeter from '../components/CompatibilityMeter';
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
@@ -31,6 +33,20 @@ export default function Profile() {
   });
 
   const isMe = me?.username === username;
+
+  const { data: topGenresData } = useQuery({
+    queryKey: ['top-genres', username],
+    queryFn: () => usersApi.getTopGenres(username!),
+    enabled: !!username,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: compatibility } = useQuery({
+    queryKey: ['compatibility', username],
+    queryFn: () => usersApi.getCompatibility(username!),
+    enabled: !!me && !!username && !isMe,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { data: friendStatus, refetch: refetchFriendStatus } = useQuery({
     queryKey: ['friend-status', profile?.id],
@@ -159,6 +175,34 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      {/* Genre Taste Profile */}
+      {topGenresData?.connected === true && topGenresData.genres && topGenresData.genres.length > 0 && (
+        <div className="rounded-2xl border border-vinyl-border/60 bg-vinyl-surface p-5">
+          <div className="flex items-baseline gap-2 mb-3">
+            <h2 className="text-base font-bold text-vinyl-text">Genre Profile</h2>
+            <span className="text-xs text-vinyl-muted">· last 4 weeks</span>
+          </div>
+          <GenreRadar genres={topGenresData.genres} />
+        </div>
+      )}
+      {topGenresData?.connected === false && isMe && (
+        <div className="rounded-xl border border-dashed border-vinyl-border p-6 text-center text-sm text-vinyl-muted">
+          <Link to="/settings" className="text-vinyl-amber hover:underline">Connect Spotify</Link>
+          {' '}to see your genre profile
+        </div>
+      )}
+
+      {/* Compatibility — shown to other logged-in users */}
+      {!isMe && me && compatibility && (
+        <CompatibilityMeter
+          score={compatibility.score}
+          sharedGenres={compatibility.sharedGenres}
+          myTopGenre={compatibility.myTopGenre}
+          theirTopGenre={compatibility.theirTopGenre}
+          theirUsername={username!}
+        />
+      )}
 
       {/* Want to Listen */}
       {wantList && wantList.length > 0 && (
