@@ -22,7 +22,11 @@ model User {
   listeningList ListeningList[]
   listenLog     ListenLog[]
   playlists     Playlist[]
-  reviewLikes   ReviewLike[]
+  reviewLikes         ReviewLike[]
+  spotifyId           String?   @unique
+  spotifyAccessToken  String?
+  spotifyRefreshToken String?
+  spotifyTokenExpiry  DateTime?
 }
 
 model Follow {
@@ -62,6 +66,7 @@ model Review {
   albumCache     AlbumCache? @relation(fields: [reviewableId], references: [spotifyAlbumId])
   comments       Comment[]
   likes          ReviewLike[]
+  @@unique([userId, reviewableType, reviewableId])
 }
 
 model ReviewLike {
