@@ -63,6 +63,31 @@ export async function getSpotifyPlaylist(playlistId: string) {
   return res.json();
 }
 
+// Uses Spotify search tag:new to get this week's freshest releases
+export async function getTrendingAlbums(limit = 6): Promise<SpotifyAlbum[]> {
+  const token = await getSpotifyToken();
+  const params = new URLSearchParams({
+    q: 'tag:new',
+    type: 'album',
+    limit: '10', // tag:new max is 10
+    market: 'US',
+  });
+  const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch trending albums');
+  const data = (await res.json()) as { albums: { items: SpotifyAlbum[] } };
+  const seen = new Set<string>();
+  const albums: SpotifyAlbum[] = [];
+  for (const album of data.albums.items) {
+    if (!album || seen.has(album.id)) continue;
+    seen.add(album.id);
+    albums.push(album);
+    if (albums.length >= limit) break;
+  }
+  return albums;
+}
+
 export function normalizeAlbum(album: SpotifyAlbum) {
   return {
     spotifyAlbumId: album.id,

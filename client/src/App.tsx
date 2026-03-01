@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import SpotifySuccess from './pages/SpotifySuccess';
 import SpotifyError from './pages/SpotifyError';
+import ReviewDetail from './pages/ReviewDetail';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/review/:id" element={<ReviewDetail />} />
               <Route path="/profile/:username" element={<Profile />} />
               <Route path="/lists/:username" element={<ListeningLists />} />
             </Route>

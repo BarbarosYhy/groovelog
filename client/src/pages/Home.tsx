@@ -28,8 +28,8 @@ export default function Home() {
       {trending && trending.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-lg font-bold text-vinyl-text">This Week</h2>
-            <span className="text-xs text-vinyl-muted">· Most reviewed</span>
+            <h2 className="text-lg font-bold text-vinyl-text">New This Week</h2>
+            <span className="text-xs text-vinyl-muted">· Fresh on Spotify</span>
           </div>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
             {trending.map((album: any) => (
