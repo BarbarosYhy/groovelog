@@ -15,30 +15,38 @@ export default function Discover() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-vinyl-text">Discover</h1>
-        <p className="text-vinyl-muted mt-1">Search millions of albums from Spotify</p>
-      </div>
-
-      <form
-        onSubmit={(e) => { e.preventDefault(); setSearch(query); }}
-        className="flex gap-3"
-      >
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search albums, artists..."
-          className="flex-1 rounded-xl border border-vinyl-border bg-vinyl-surface px-4 py-3 text-vinyl-text placeholder-vinyl-muted focus:border-vinyl-amber focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="rounded-xl bg-vinyl-amber px-6 py-3 font-semibold text-black hover:bg-vinyl-amber-light transition-colors"
+    <div className="space-y-8">
+      {/* Hero search */}
+      <div className="text-center space-y-4 py-8">
+        <h1 className="text-4xl font-black text-vinyl-text">Discover</h1>
+        <p className="text-vinyl-muted">Search millions of albums from Spotify</p>
+        <form
+          onSubmit={(e) => { e.preventDefault(); setSearch(query); }}
+          className="max-w-xl mx-auto"
         >
-          Search
-        </button>
-      </form>
+          <div className="relative">
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-vinyl-muted pointer-events-none"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search albums, artists..."
+              className="w-full rounded-2xl border border-vinyl-border bg-vinyl-surface pl-12 pr-32 py-4 text-vinyl-text placeholder-vinyl-muted focus:border-vinyl-amber focus:outline-none text-base"
+            />
+            <button
+              type="submit"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl bg-vinyl-amber px-5 py-2 font-semibold text-black hover:bg-vinyl-amber-light transition-colors text-sm"
+            >
+              Search
+            </button>
+          </div>
+        </form>
+      </div>
 
       {isLoading && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
