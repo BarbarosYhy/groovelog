@@ -68,15 +68,16 @@ model AlbumCache {
 model Review {
   id             String     @id @default(cuid())
   userId         String
-  reviewableType String     // "album" | "playlist"
+  reviewableType String     // "album" | "track"
   reviewableId   String
+  albumId        String?
   rating         Float
   bodyText       String?
   listenDate     DateTime?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  albumCache     AlbumCache? @relation(fields: [reviewableId], references: [spotifyAlbumId])
+  albumCache     AlbumCache? @relation(fields: [albumId], references: [spotifyAlbumId])
   comments       Comment[]
   likes          ReviewLike[]
   @@unique([userId, reviewableType, reviewableId])

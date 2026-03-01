@@ -46,6 +46,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
         userId: req.user!.id,
         reviewableType,
         reviewableId,
+        albumId: reviewableType === 'album' ? reviewableId : null,
         rating,
         bodyText,
         listenDate: listenDate ? new Date(listenDate) : undefined,
