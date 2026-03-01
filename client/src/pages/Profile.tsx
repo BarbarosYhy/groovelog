@@ -9,6 +9,20 @@ import ReviewCard from '../components/ReviewCard';
 import GenreRadar from '../components/GenreRadar';
 import CompatibilityMeter from '../components/CompatibilityMeter';
 
+function genrePersonality(genre: string): string {
+  const g = genre.toLowerCase();
+  if (g.includes('pop')) return 'Pop Enthusiast';
+  if (g.includes('indie')) return 'Indie Explorer';
+  if (g.includes('rock') || g.includes('metal')) return 'Rock Devotee';
+  if (g.includes('hip hop') || g.includes('rap')) return 'Hip-Hop Head';
+  if (g.includes('electronic') || g.includes('house') || g.includes('techno') || g.includes('edm')) return 'Electronic Aficionado';
+  if (g.includes('jazz')) return 'Jazz Connoisseur';
+  if (g.includes('classical')) return 'Classical Soul';
+  if (g.includes('r&b') || g.includes('soul')) return 'R&B Lover';
+  if (g.includes('folk') || g.includes('country')) return 'Folk Wanderer';
+  return 'Genre Explorer';
+}
+
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
   const { user: me } = useAuth();
@@ -177,21 +191,47 @@ export default function Profile() {
       </div>
 
       {/* Genre Taste Profile */}
-      {topGenresData?.connected === true && topGenresData.genres && topGenresData.genres.length > 0 && (
-        <div className="rounded-2xl border border-vinyl-border/60 bg-vinyl-surface p-5">
-          <div className="flex items-baseline gap-2 mb-3">
+      <div className="rounded-2xl border border-vinyl-border/60 bg-vinyl-surface p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-baseline gap-2">
             <h2 className="text-base font-bold text-vinyl-text">Genre Profile</h2>
-            <span className="text-xs text-vinyl-muted">· last 4 weeks</span>
+            <span className="text-xs text-vinyl-muted">· {topGenresData?.timeLabel ?? 'last 4 weeks'}</span>
           </div>
+          {topGenresData?.genres?.[0] && (
+            <span className="text-[10px] text-vinyl-amber bg-vinyl-amber/10 px-2 py-0.5 rounded-full border border-vinyl-amber/20">
+              {genrePersonality(topGenresData.genres[0].name)}
+            </span>
+          )}
+        </div>
+
+        {/* Loading skeleton */}
+        {!topGenresData && (
+          <div className="h-48 animate-pulse rounded-xl bg-vinyl-card" />
+        )}
+
+        {/* Has data */}
+        {topGenresData?.connected === true && topGenresData.genres && topGenresData.genres.length > 0 && (
           <GenreRadar genres={topGenresData.genres} />
-        </div>
-      )}
-      {topGenresData?.connected === false && isMe && (
-        <div className="rounded-xl border border-dashed border-vinyl-border p-6 text-center text-sm text-vinyl-muted">
-          <Link to="/settings" className="text-vinyl-amber hover:underline">Connect Spotify</Link>
-          {' '}to see your genre profile
-        </div>
-      )}
+        )}
+
+        {/* Connected but no genre activity */}
+        {topGenresData?.connected === true && (!topGenresData.genres || topGenresData.genres.length === 0) && (
+          <p className="text-center text-sm text-vinyl-muted py-6">No genre activity this month.</p>
+        )}
+
+        {/* Not connected — own profile */}
+        {topGenresData?.connected === false && isMe && (
+          <div className="text-center py-6">
+            <p className="text-sm text-vinyl-muted mb-3">Connect Spotify to see your genre profile</p>
+            <Link to="/settings" className="text-sm text-vinyl-amber hover:underline">Connect →</Link>
+          </div>
+        )}
+
+        {/* Not connected — other profile */}
+        {topGenresData?.connected === false && !isMe && (
+          <p className="text-center text-sm text-vinyl-muted py-6">This user hasn't connected Spotify yet.</p>
+        )}
+      </div>
 
       {/* Compatibility — shown to other logged-in users */}
       {!isMe && me && compatibility && (

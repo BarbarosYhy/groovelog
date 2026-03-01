@@ -28,6 +28,7 @@ export const usersApi = {
     api.get(`/api/users/${username}/top-genres`).then((r) => r.data as {
       connected: boolean;
       genres?: Array<{ name: string; count: number; percentage: number }>;
+      timeLabel?: string;
     }),
   getCompatibility: (username: string) =>
     api.get(`/api/users/${username}/compatibility`).then((r) => r.data as {

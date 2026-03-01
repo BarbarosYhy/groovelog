@@ -91,34 +91,40 @@ router.get('/:username/top-genres', async (req: Request, res: Response) => {
       return;
     }
 
-    const tracksRes = await fetch(
-      'https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term',
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (!tracksRes.ok) { res.json({ connected: false }); return; }
+    const timeRanges: Array<{ range: string; label: string }> = [
+      { range: 'short_term', label: 'last 4 weeks' },
+      { range: 'medium_term', label: 'last 6 months' },
+      { range: 'long_term', label: 'all time' },
+    ];
 
-    const tracksData = (await tracksRes.json()) as {
-      items: Array<{ artists: Array<{ id: string }> }>;
-    };
+    // Use /me/top/artists directly — returns full artist objects with genres embedded.
+    // This is more reliable than top/tracks → batch /artists, since top artists are
+    // well-known enough that Spotify has genre tags for them.
+    let topArtists: Array<{ genres: string[] }> = [];
+    let timeLabel = 'last 4 weeks';
 
-    const artistIds = [
-      ...new Set(tracksData.items.flatMap((t) => t.artists.map((a) => a.id))),
-    ].slice(0, 50);
+    for (const { range, label } of timeRanges) {
+      const artistsRes = await fetch(
+        `https://api.spotify.com/v1/me/top/artists?limit=50&time_range=${range}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!artistsRes.ok) { res.json({ connected: false }); return; }
 
-    if (artistIds.length === 0) { res.json({ connected: true, genres: [] }); return; }
+      const artistsData = (await artistsRes.json()) as {
+        items: Array<{ genres: string[] }>;
+      };
 
-    const artistsRes = await fetch(
-      `https://api.spotify.com/v1/artists?ids=${artistIds.join(',')}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (!artistsRes.ok) { res.json({ connected: true, genres: [] }); return; }
+      if (artistsData.items.length > 0) {
+        topArtists = artistsData.items;
+        timeLabel = label;
+        break;
+      }
+    }
 
-    const artistsData = (await artistsRes.json()) as {
-      artists: Array<{ genres: string[] }>;
-    };
+    if (topArtists.length === 0) { res.json({ connected: true, genres: [], timeLabel: 'last 4 weeks' }); return; }
 
     const counts: Record<string, number> = {};
-    for (const artist of artistsData.artists) {
+    for (const artist of topArtists) {
       for (const genre of artist.genres) {
         counts[genre] = (counts[genre] ?? 0) + 1;
       }
@@ -136,7 +142,7 @@ router.get('/:username/top-genres', async (req: Request, res: Response) => {
         percentage: Math.round((count / total) * 100),
       }));
 
-    res.json({ connected: true, genres: top5 });
+    res.json({ connected: true, genres: top5, timeLabel });
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }

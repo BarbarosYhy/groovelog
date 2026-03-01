@@ -139,6 +139,22 @@ export default function GenreRadar({ genres }: Props) {
           );
         })}
       </svg>
+
+      {/* Genre legend bars */}
+      <div className="mt-3 space-y-1.5 w-full max-w-[220px] mx-auto">
+        {genres.slice(0, 5).map((g, i) => (
+          <div key={g.name} className="flex items-center gap-2 text-[11px]">
+            <span className="w-20 truncate text-vinyl-muted text-right">{g.name.length > 16 ? g.name.slice(0, 15) + '…' : g.name}</span>
+            <div className="flex-1 h-1 rounded-full bg-vinyl-border/40 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-vinyl-amber"
+                style={{ width: `${g.percentage}%`, opacity: 1 - i * 0.15 }}
+              />
+            </div>
+            <span className="w-8 text-vinyl-muted">{g.percentage}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
