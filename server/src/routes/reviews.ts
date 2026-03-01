@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client';
@@ -130,7 +130,7 @@ router.get('/album/:albumId', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get('/community', async (req: AuthRequest, res: Response) => {
+router.get('/community', async (req: Request, res: Response) => {
   const sort = (req.query.sort as string) === 'hot' ? 'hot' : 'new';
   try {
     const reviews = await prisma.review.findMany({
