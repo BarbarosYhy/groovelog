@@ -83,7 +83,25 @@ router.get('/:username', async (req: AuthRequest, res: Response) => {
       },
     });
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
-    res.json(user);
+
+    const [avgRatingResult, friendCount] = await Promise.all([
+      prisma.review.aggregate({
+        where: { userId: user.id, reviewableType: 'album', rating: { not: null as any } },
+        _avg: { rating: true },
+      }),
+      prisma.friendship.count({
+        where: {
+          status: 'accepted',
+          OR: [{ requesterId: user.id }, { addresseeId: user.id }],
+        },
+      }),
+    ]);
+
+    res.json({
+      ...user,
+      avgRating: avgRatingResult._avg?.rating ?? null,
+      friendCount,
+    });
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -111,10 +129,18 @@ router.post('/:id/follow', requireAuth, async (req: AuthRequest, res: Response) 
 router.get('/:id/feed', requireAuth, async (req: AuthRequest, res: Response) => {
   if (req.params.id !== req.user!.id) { res.status(403).json({ error: 'Forbidden' }); return; }
   try {
-    const follows = await prisma.follow.findMany({ where: { followerId: req.user!.id }, select: { followingId: true } });
-    const followingIds = follows.map((f) => f.followingId);
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        status: 'accepted',
+        OR: [{ requesterId: req.user!.id }, { addresseeId: req.user!.id }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const friendIds = friendships.map((f) =>
+      f.requesterId === req.user!.id ? f.addresseeId : f.requesterId
+    );
     const reviews = await prisma.review.findMany({
-      where: { userId: { in: followingIds } },
+      where: { userId: { in: friendIds } },
       include: {
         user: { select: { id: true, username: true, avatarUrl: true } },
         albumCache: { select: { name: true, artist: true, coverUrl: true } },
