@@ -15,24 +15,35 @@ beforeAll(async () => {
   token = res.body.token;
   userId = res.body.user.id;
 
-  // Seed a fake album cache entry
-  await prisma.albumCache.upsert({
-    where: { spotifyAlbumId: TEST_ALBUM_ID },
-    update: {},
-    create: {
-      spotifyAlbumId: TEST_ALBUM_ID,
-      name: 'Test Album',
-      artist: 'Test Artist',
-      releaseYear: 2020,
-      coverUrl: 'https://example.com/cover.jpg',
-      genres: [],
-    },
-  });
+  // Seed fake album cache entries
+  const albumSeeds = [
+    { spotifyAlbumId: TEST_ALBUM_ID, name: 'Test Album', artist: 'Test Artist' },
+    { spotifyAlbumId: 'mine-test-album', name: 'Mine Test Album', artist: 'Test Artist' },
+    { spotifyAlbumId: 'dup-test-album', name: 'Dup Test Album', artist: 'Test Artist' },
+  ];
+  for (const seed of albumSeeds) {
+    await prisma.albumCache.upsert({
+      where: { spotifyAlbumId: seed.spotifyAlbumId },
+      update: {},
+      create: {
+        spotifyAlbumId: seed.spotifyAlbumId,
+        name: seed.name,
+        artist: seed.artist,
+        releaseYear: 2020,
+        coverUrl: 'https://example.com/cover.jpg',
+        genres: [],
+      },
+    });
+  }
 });
 
 afterAll(async () => {
-  await prisma.review.deleteMany({ where: { reviewableId: TEST_ALBUM_ID } });
-  await prisma.albumCache.deleteMany({ where: { spotifyAlbumId: TEST_ALBUM_ID } });
+  await prisma.review.deleteMany({
+    where: { reviewableId: { in: [TEST_ALBUM_ID, 'mine-test-album', 'dup-test-album'] } },
+  });
+  await prisma.albumCache.deleteMany({
+    where: { spotifyAlbumId: { in: [TEST_ALBUM_ID, 'mine-test-album', 'dup-test-album'] } },
+  });
   await prisma.user.deleteMany({ where: { id: userId } });
   await prisma.$disconnect();
 });
@@ -80,5 +91,55 @@ describe('POST /api/reviews/:id/like', () => {
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('liked');
+  });
+});
+
+describe('GET /api/reviews/mine', () => {
+  it('returns 401 if not authenticated', async () => {
+    const res = await request(app).get('/api/reviews/mine?albumId=abc');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 if albumId missing', async () => {
+    const res = await request(app)
+      .get('/api/reviews/mine')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 if no review exists', async () => {
+    const res = await request(app)
+      .get('/api/reviews/mine?albumId=nonexistent-album-xyz')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns existing review', async () => {
+    await request(app)
+      .post('/api/reviews')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ reviewableType: 'album', reviewableId: 'mine-test-album', rating: 4 });
+
+    const res = await request(app)
+      .get('/api/reviews/mine?albumId=mine-test-album')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rating).toBe(4);
+  });
+});
+
+describe('POST /api/reviews duplicate prevention', () => {
+  it('returns 409 on duplicate review', async () => {
+    await request(app)
+      .post('/api/reviews')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ reviewableType: 'album', reviewableId: 'dup-test-album', rating: 3 });
+
+    const res = await request(app)
+      .post('/api/reviews')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ reviewableType: 'album', reviewableId: 'dup-test-album', rating: 4 });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/already/i);
   });
 });

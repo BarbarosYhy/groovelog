@@ -21,6 +21,19 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
   }
   const { reviewableType, reviewableId, rating, bodyText, listenDate } = parse.data;
   try {
+    const existing = await prisma.review.findUnique({
+      where: {
+        userId_reviewableType_reviewableId: {
+          userId: req.user!.id,
+          reviewableType,
+          reviewableId,
+        },
+      },
+    });
+    if (existing) {
+      res.status(409).json({ error: 'You have already reviewed this album' });
+      return;
+    }
     const review = await prisma.review.create({
       data: {
         userId: req.user!.id,
@@ -36,6 +49,30 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
       },
     });
     res.status(201).json(review);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/mine', requireAuth, async (req: AuthRequest, res: Response) => {
+  const albumId = req.query.albumId as string;
+  if (!albumId) { res.status(400).json({ error: 'albumId required' }); return; }
+  try {
+    const review = await prisma.review.findUnique({
+      where: {
+        userId_reviewableType_reviewableId: {
+          userId: req.user!.id,
+          reviewableType: 'album',
+          reviewableId: albumId,
+        },
+      },
+      include: {
+        user: { select: { id: true, username: true, avatarUrl: true } },
+        _count: { select: { likes: true, comments: true } },
+      },
+    });
+    if (!review) { res.status(404).json({ error: 'No review found' }); return; }
+    res.json(review);
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
