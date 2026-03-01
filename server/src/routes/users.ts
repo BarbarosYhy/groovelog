@@ -155,17 +155,16 @@ router.get('/:username/top-genres', async (req: Request, res: Response) => {
       }
     });
 
-    const total = Object.values(counts).reduce((s, v) => s + v, 0);
-    if (total === 0) { res.json({ connected: true, genres: [], timeLabel }); return; }
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (sorted.length === 0) { res.json({ connected: true, genres: [], timeLabel }); return; }
 
-    const top5 = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, count]) => ({
-        name,
-        count,
-        percentage: Math.round((count / total) * 100),
-      }));
+    // Normalize against the top-5 subtotal so percentages sum to ~100%
+    const top5Total = sorted.reduce((s, [, v]) => s + v, 0);
+    const top5 = sorted.map(([name, count]) => ({
+      name,
+      count,
+      percentage: Math.round((count / top5Total) * 100),
+    }));
 
     res.json({ connected: true, genres: top5, timeLabel });
   } catch (err) {
