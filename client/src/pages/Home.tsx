@@ -71,13 +71,13 @@ export default function Home() {
           <span className="text-5xl block">🎵</span>
           <p className="text-vinyl-text font-medium">Your feed is empty</p>
           <p className="text-vinyl-muted text-sm">
-            Follow other users to see their reviews here.
+            Add friends to see their reviews here.
           </p>
           <Link
-            to="/discover"
+            to="/friends"
             className="inline-block mt-2 rounded-xl bg-vinyl-amber px-5 py-2 font-semibold text-black hover:bg-vinyl-amber-light transition-colors"
           >
-            Discover Albums
+            Find Friends
           </Link>
         </div>
       )}
