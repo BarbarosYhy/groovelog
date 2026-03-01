@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
-import { albumsApi } from '../api/albums';
 import { spotifyApi } from '../api/spotify';
 import AlbumCard from '../components/AlbumCard';
 import { Link } from 'react-router-dom';
@@ -9,10 +8,11 @@ export default function Discover() {
   const { user } = useAuth();
   const spotifyConnected = !!user?.spotifyId;
 
-  const { data: trending, isLoading: trendingLoading } = useQuery({
-    queryKey: ['trending'],
-    queryFn: () => albumsApi.getTrending(10),
-    staleTime: 10 * 60 * 1000,
+  const { data: globalTop, isLoading: globalLoading, isError: globalError } = useQuery({
+    queryKey: ['global-top'],
+    queryFn: () => spotifyApi.getGlobalTop(),
+    enabled: spotifyConnected,
+    staleTime: 30 * 60 * 1000, // 30 min — chart updates weekly
   });
 
   const { data: recentlyPlayed } = useQuery({
@@ -31,32 +31,71 @@ export default function Discover() {
     genres: [],
   }));
 
+  // Not connected — prompt to connect
+  if (!user || !spotifyConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-5 text-center">
+        <div className="w-16 h-16 rounded-full bg-[#1DB954]/10 flex items-center justify-center">
+          <svg className="w-8 h-8" viewBox="0 0 24 24" fill="#1DB954">
+            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-vinyl-text">Connect Spotify to Discover</h2>
+          <p className="text-vinyl-muted text-sm mt-1">
+            See the Global Top 50 chart and your personal listening history.
+          </p>
+        </div>
+        <Link
+          to="/settings"
+          className="rounded-xl px-6 py-2.5 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+          style={{ backgroundColor: '#1DB954' }}
+        >
+          Connect Spotify
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10">
-      {/* Global trending */}
+      {/* Global Top 50 */}
       <section>
         <div className="flex items-baseline gap-2 mb-4">
-          <h2 className="text-xl font-black text-vinyl-text">Global New Releases</h2>
-          <span className="text-xs text-vinyl-muted">· Fresh on Spotify this week</span>
+          <h2 className="text-xl font-black text-vinyl-text">Global Top 50</h2>
+          <span className="text-xs text-vinyl-muted">· Spotify's weekly chart</span>
         </div>
 
-        {trendingLoading ? (
+        {globalLoading && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="aspect-square animate-pulse rounded-xl bg-vinyl-surface" />
             ))}
           </div>
-        ) : (
+        )}
+
+        {globalError && (
+          <div className="rounded-xl border border-red-800/40 bg-red-900/10 p-6 text-center text-sm text-red-400">
+            Could not load Global Top 50. Spotify may have restricted access for this app.
+          </div>
+        )}
+
+        {globalTop && globalTop.length > 0 && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {(trending ?? []).map((album: any) => (
-              <AlbumCard key={album.spotifyAlbumId} album={album} />
+            {globalTop.map((album, i) => (
+              <div key={album.spotifyAlbumId} className="relative">
+                <span className="absolute top-2 left-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-bold text-vinyl-muted tabular-nums">
+                  #{i + 1}
+                </span>
+                <AlbumCard album={album} />
+              </div>
             ))}
           </div>
         )}
       </section>
 
-      {/* Personal recent plays — only if Spotify connected */}
-      {spotifyConnected && recentAlbums.length > 0 && (
+      {/* Your Recent Plays */}
+      {recentAlbums.length > 0 && (
         <section>
           <div className="flex items-baseline gap-2 mb-4">
             <h2 className="text-xl font-black text-vinyl-text">Your Recent Plays</h2>
@@ -68,22 +107,6 @@ export default function Discover() {
             ))}
           </div>
         </section>
-      )}
-
-      {/* Prompt to connect Spotify if not connected */}
-      {!spotifyConnected && user && (
-        <div className="rounded-xl border border-dashed border-vinyl-border p-8 text-center space-y-3">
-          <p className="text-vinyl-text font-medium">See your personal listening history</p>
-          <p className="text-vinyl-muted text-sm">
-            Connect Spotify to see your recently played albums here.
-          </p>
-          <Link
-            to="/settings"
-            className="inline-block mt-2 rounded-xl border border-[#1DB954]/40 px-5 py-2 text-sm font-semibold text-[#1DB954] hover:bg-[#1DB954]/10 transition-colors"
-          >
-            Connect Spotify →
-          </Link>
-        </div>
       )}
     </div>
   );

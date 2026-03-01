@@ -7,6 +7,65 @@ const router = Router();
 
 const SCOPES = 'user-read-recently-played';
 
+// Spotify's official Global Top 50 playlist (updated weekly)
+const GLOBAL_TOP_50_ID = '37i9dQZEVXbMDoHDwVN2tF';
+
+// ─── Helper ──────────────────────────────────────────────────────────────────
+// Returns a valid Spotify access token for the given user, refreshing if needed.
+// Throws with { status, message } if Spotify is not connected or refresh fails.
+async function getUserSpotifyToken(userId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      spotifyAccessToken: true,
+      spotifyRefreshToken: true,
+      spotifyTokenExpiry: true,
+    },
+  });
+
+  if (!user?.spotifyAccessToken) {
+    throw Object.assign(new Error('Spotify not connected'), { status: 400 });
+  }
+
+  // Token still valid
+  if (user.spotifyTokenExpiry && user.spotifyTokenExpiry >= new Date(Date.now() + 60_000)) {
+    return user.spotifyAccessToken;
+  }
+
+  // Refresh
+  const creds = Buffer.from(
+    `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+  ).toString('base64');
+  const refreshRes = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${creds}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: user.spotifyRefreshToken!,
+    }),
+  });
+
+  if (!refreshRes.ok) {
+    throw Object.assign(new Error('Spotify token refresh failed. Please reconnect.'), { status: 401 });
+  }
+
+  const refreshed = (await refreshRes.json()) as { access_token: string; expires_in: number };
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      spotifyAccessToken: refreshed.access_token,
+      spotifyTokenExpiry: new Date(Date.now() + refreshed.expires_in * 1000),
+    },
+  });
+
+  return refreshed.access_token;
+}
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
+
 // Redirect user to Spotify OAuth consent screen
 // Token is passed as query param because browsers don't send custom headers on redirects
 router.get('/connect', (req: Request, res: Response) => {
@@ -67,7 +126,6 @@ router.get('/callback', async (req: Request, res: Response) => {
       expires_in: number;
     };
 
-    // Get Spotify user ID
     const profileRes = await fetch('https://api.spotify.com/v1/me', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
@@ -77,7 +135,6 @@ router.get('/callback', async (req: Request, res: Response) => {
     }
     const profile = (await profileRes.json()) as { id: string };
 
-    // Save tokens to DB (state = userId from JWT)
     await prisma.user.update({
       where: { id: state },
       data: {
@@ -94,58 +151,67 @@ router.get('/callback', async (req: Request, res: Response) => {
   }
 });
 
-// Get recently played albums for the authenticated user
-router.get('/recently-played', requireAuth, async (req: AuthRequest, res: Response) => {
+// Global Top 50 weekly chart — uses user's OAuth token (client creds get 403 for this playlist)
+router.get('/global-top', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: {
-        spotifyAccessToken: true,
-        spotifyRefreshToken: true,
-        spotifyTokenExpiry: true,
-      },
-    });
+    const accessToken = await getUserSpotifyToken(req.user!.id);
 
-    if (!user?.spotifyAccessToken) {
-      res.status(400).json({ error: 'Spotify not connected' });
+    const playlistRes = await fetch(
+      `https://api.spotify.com/v1/playlists/${GLOBAL_TOP_50_ID}/tracks?limit=50&market=US`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    if (!playlistRes.ok) {
+      res.status(502).json({ error: 'Failed to fetch Global Top 50. Spotify may have restricted access.' });
       return;
     }
 
-    let accessToken = user.spotifyAccessToken;
+    const data = (await playlistRes.json()) as {
+      items: Array<{
+        track: {
+          album: {
+            id: string;
+            name: string;
+            images: { url: string }[];
+            artists: { name: string }[];
+            release_date: string;
+          };
+        } | null;
+      }>;
+    };
 
-    // Refresh token if expired or about to expire (60s buffer)
-    if (!user.spotifyTokenExpiry || user.spotifyTokenExpiry < new Date(Date.now() + 60_000)) {
-      const creds = Buffer.from(
-        `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
-      ).toString('base64');
-      const refreshRes = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${creds}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: user.spotifyRefreshToken!,
-        }),
-      });
-      if (!refreshRes.ok) {
-        res.status(401).json({ error: 'Spotify token refresh failed. Please reconnect.' });
-        return;
-      }
-      const refreshed = (await refreshRes.json()) as {
-        access_token: string;
-        expires_in: number;
-      };
-      accessToken = refreshed.access_token;
-      await prisma.user.update({
-        where: { id: req.user!.id },
-        data: {
-          spotifyAccessToken: refreshed.access_token,
-          spotifyTokenExpiry: new Date(Date.now() + refreshed.expires_in * 1000),
-        },
+    const seen = new Set<string>();
+    const albums = [];
+    for (const item of data.items) {
+      const album = item.track?.album;
+      if (!album || seen.has(album.id)) continue;
+      seen.add(album.id);
+      albums.push({
+        spotifyAlbumId: album.id,
+        name: album.name,
+        artist: album.artists[0]?.name ?? '',
+        coverUrl: album.images[0]?.url ?? '',
+        releaseYear: parseInt(album.release_date?.slice(0, 4) ?? '0'),
+        genres: [],
       });
     }
+
+    res.json(albums);
+  } catch (err: any) {
+    if (err.status === 400) {
+      res.status(400).json({ error: err.message });
+    } else if (err.status === 401) {
+      res.status(401).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+// Get recently played albums for the authenticated user
+router.get('/recently-played', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const accessToken = await getUserSpotifyToken(req.user!.id);
 
     const recentRes = await fetch(
       'https://api.spotify.com/v1/me/player/recently-played?limit=50',
@@ -171,7 +237,6 @@ router.get('/recently-played', requireAuth, async (req: AuthRequest, res: Respon
       }>;
     };
 
-    // Deduplicate by album — keep most recent play per album
     const seen = new Set<string>();
     const result = data.items
       .filter((item) => {
@@ -188,8 +253,14 @@ router.get('/recently-played', requireAuth, async (req: AuthRequest, res: Respon
       }));
 
     res.json(result);
-  } catch {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (err: any) {
+    if (err.status === 400) {
+      res.status(400).json({ error: err.message });
+    } else if (err.status === 401) {
+      res.status(401).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 });
 
