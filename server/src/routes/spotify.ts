@@ -5,7 +5,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-const SCOPES = 'user-read-recently-played';
+const SCOPES = 'user-read-recently-played user-top-read';
 
 // Spotify's official Global Top 50 playlist (updated weekly)
 const GLOBAL_TOP_50_ID = '37i9dQZEVXbMDoHDwVN2tF';
@@ -151,39 +151,39 @@ router.get('/callback', async (req: Request, res: Response) => {
   }
 });
 
-// Global Top 50 weekly chart — uses user's OAuth token (client creds get 403 for this playlist)
+// User's top albums from their most listened tracks (short_term = last ~4 weeks)
+// Requires user-top-read scope. Returns albums deduped from top 50 tracks.
 router.get('/global-top', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const accessToken = await getUserSpotifyToken(req.user!.id);
 
-    const playlistRes = await fetch(
-      `https://api.spotify.com/v1/playlists/${GLOBAL_TOP_50_ID}/tracks?limit=50&market=US`,
+    const topRes = await fetch(
+      'https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term',
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
-    if (!playlistRes.ok) {
-      res.status(502).json({ error: 'Failed to fetch Global Top 50. Spotify may have restricted access.' });
+    if (!topRes.ok) {
+      const errBody = await topRes.text();
+      res.status(502).json({ error: `Spotify ${topRes.status}: ${errBody}` });
       return;
     }
 
-    const data = (await playlistRes.json()) as {
+    const data = (await topRes.json()) as {
       items: Array<{
-        track: {
-          album: {
-            id: string;
-            name: string;
-            images: { url: string }[];
-            artists: { name: string }[];
-            release_date: string;
-          };
-        } | null;
+        album: {
+          id: string;
+          name: string;
+          images: { url: string }[];
+          artists: { name: string }[];
+          release_date: string;
+        };
       }>;
     };
 
     const seen = new Set<string>();
     const albums = [];
-    for (const item of data.items) {
-      const album = item.track?.album;
+    for (const track of data.items) {
+      const album = track.album;
       if (!album || seen.has(album.id)) continue;
       seen.add(album.id);
       albums.push({

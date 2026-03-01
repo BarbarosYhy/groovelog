@@ -62,8 +62,8 @@ export default function Discover() {
       {/* Global Top 50 */}
       <section>
         <div className="flex items-baseline gap-2 mb-4">
-          <h2 className="text-xl font-black text-vinyl-text">Global Top 50</h2>
-          <span className="text-xs text-vinyl-muted">· Spotify's weekly chart</span>
+          <h2 className="text-xl font-black text-vinyl-text">Your Top Albums</h2>
+          <span className="text-xs text-vinyl-muted">· Most listened last 4 weeks</span>
         </div>
 
         {globalLoading && (
@@ -75,20 +75,16 @@ export default function Discover() {
         )}
 
         {globalError && (
-          <div className="rounded-xl border border-red-800/40 bg-red-900/10 p-6 text-center text-sm text-red-400">
-            Could not load Global Top 50. Spotify may have restricted access for this app.
+          <div className="rounded-xl border border-vinyl-border/50 bg-vinyl-surface p-6 text-center text-sm text-vinyl-muted">
+            Could not load your top tracks. Try reconnecting Spotify from{' '}
+            <a href="/settings" className="text-vinyl-amber underline">Settings</a>.
           </div>
         )}
 
         {globalTop && globalTop.length > 0 && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {globalTop.map((album, i) => (
-              <div key={album.spotifyAlbumId} className="relative">
-                <span className="absolute top-2 left-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-bold text-vinyl-muted tabular-nums">
-                  #{i + 1}
-                </span>
-                <AlbumCard album={album} />
-              </div>
+            {globalTop.map((album) => (
+              <AlbumCard key={album.spotifyAlbumId} album={album} />
             ))}
           </div>
         )}
