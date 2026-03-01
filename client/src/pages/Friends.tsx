@@ -18,6 +18,7 @@ export default function Friends() {
   const qc = useQueryClient();
   const [input, setInput] = useState('');
   const [searchQ, setSearchQ] = useState('');
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
 
   const { data: friends = [] } = useQuery({
     queryKey: ['friends'],
@@ -39,7 +40,14 @@ export default function Friends() {
 
   const sendMutation = useMutation({
     mutationFn: (userId: string) => friendsApi.sendRequest(userId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['user-search', searchQ] }),
+    onSuccess: (_data, userId) => {
+      setSentIds((prev) => new Set(prev).add(userId));
+      qc.invalidateQueries({ queryKey: ['user-search', searchQ] });
+    },
+    onError: (_error, userId) => {
+      // If already requested (409), still mark as sent
+      setSentIds((prev) => new Set(prev).add(userId));
+    },
   });
 
   const acceptMutation = useMutation({
@@ -101,11 +109,15 @@ export default function Friends() {
                   {u.username}
                 </Link>
                 <button
-                  onClick={() => sendMutation.mutate(u.id)}
-                  disabled={sendMutation.isPending}
-                  className="rounded-xl border border-vinyl-border px-3 py-1.5 text-xs text-vinyl-muted hover:border-vinyl-amber/60 hover:text-vinyl-text transition-colors disabled:opacity-50"
+                  onClick={() => !sentIds.has(u.id) && sendMutation.mutate(u.id)}
+                  disabled={sentIds.has(u.id) || sendMutation.isPending}
+                  className={`rounded-xl border px-3 py-1.5 text-xs transition-colors disabled:opacity-60 ${
+                    sentIds.has(u.id)
+                      ? 'border-vinyl-amber/50 text-vinyl-amber cursor-default'
+                      : 'border-vinyl-border text-vinyl-muted hover:border-vinyl-amber/60 hover:text-vinyl-text'
+                  }`}
                 >
-                  Add Friend
+                  {sentIds.has(u.id) ? 'Requested ✓' : 'Add Friend'}
                 </button>
               </div>
             ))}
