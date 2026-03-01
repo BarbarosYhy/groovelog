@@ -48,11 +48,12 @@ export default function Profile() {
 
   const isMe = me?.username === username;
 
-  const { data: topGenresData } = useQuery({
+  const { data: topGenresData, isLoading: genresLoading, isError: genresError } = useQuery({
     queryKey: ['top-genres', username],
     queryFn: () => usersApi.getTopGenres(username!),
     enabled: !!username,
     staleTime: 10 * 60 * 1000,
+    retry: 1,
   });
 
   const { data: compatibility } = useQuery({
@@ -205,8 +206,13 @@ export default function Profile() {
         </div>
 
         {/* Loading skeleton */}
-        {!topGenresData && (
+        {genresLoading && (
           <div className="h-48 animate-pulse rounded-xl bg-vinyl-card" />
+        )}
+
+        {/* Error state */}
+        {genresError && (
+          <p className="text-center text-sm text-vinyl-muted py-6">Could not load genre data.</p>
         )}
 
         {/* Has data */}
