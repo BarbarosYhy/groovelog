@@ -24,4 +24,16 @@ export const usersApi = {
     }>),
   getReviews: (username: string) =>
     api.get(`/api/users/${username}/reviews`).then((r) => r.data),
+  getTopGenres: (username: string) =>
+    api.get(`/api/users/${username}/top-genres`).then((r) => r.data as {
+      connected: boolean;
+      genres?: Array<{ name: string; count: number; percentage: number }>;
+    }),
+  getCompatibility: (username: string) =>
+    api.get(`/api/users/${username}/compatibility`).then((r) => r.data as {
+      score: number;
+      sharedGenres: string[];
+      myTopGenre: string | null;
+      theirTopGenre: string | null;
+    }),
 };
