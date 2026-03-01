@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { spotifyApi } from '../api/spotify';
-import AlbumCard from '../components/AlbumCard';
+import HorizontalShelf from '../components/HorizontalShelf';
 import { Link } from 'react-router-dom';
 
 export default function Discover() {
@@ -12,7 +12,7 @@ export default function Discover() {
     queryKey: ['global-top'],
     queryFn: () => spotifyApi.getGlobalTop(),
     enabled: spotifyConnected,
-    staleTime: 30 * 60 * 1000, // 30 min — chart updates weekly
+    staleTime: 30 * 60 * 1000,
   });
 
   const { data: recentlyPlayed } = useQuery({
@@ -22,7 +22,16 @@ export default function Discover() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const recentAlbums = (recentlyPlayed ?? []).slice(0, 10).map((r) => ({
+  const topAlbums = (globalTop ?? []).slice(0, 15).map((a) => ({
+    spotifyAlbumId: a.spotifyAlbumId,
+    name: a.name,
+    artist: a.artist,
+    coverUrl: a.coverUrl,
+    releaseYear: a.releaseYear,
+    genres: a.genres,
+  }));
+
+  const recentAlbums = (recentlyPlayed ?? []).slice(0, 15).map((r) => ({
     spotifyAlbumId: r.albumId,
     name: r.albumName,
     artist: r.artist,
@@ -43,7 +52,7 @@ export default function Discover() {
         <div>
           <h2 className="text-xl font-bold text-vinyl-text">Connect Spotify to Discover</h2>
           <p className="text-vinyl-muted text-sm mt-1">
-            See the Global Top 50 chart and your personal listening history.
+            See your most listened albums and personal listening history.
           </p>
         </div>
         <Link
@@ -59,19 +68,19 @@ export default function Discover() {
 
   return (
     <div className="space-y-10">
-      {/* Global Top 50 */}
+      {/* Your Top Albums */}
       <section>
-        <div className="flex items-baseline gap-2 mb-4">
-          <h2 className="text-xl font-black text-vinyl-text">Your Top Albums</h2>
-          <span className="text-xs text-vinyl-muted">· Most listened last 4 weeks</span>
-        </div>
-
         {globalLoading && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="aspect-square animate-pulse rounded-xl bg-vinyl-surface" />
-            ))}
-          </div>
+          <>
+            <div className="flex items-baseline gap-2 mb-4">
+              <div className="h-6 w-40 rounded bg-vinyl-surface animate-pulse" />
+            </div>
+            <div className="grid grid-cols-5 gap-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="aspect-square animate-pulse rounded-xl bg-vinyl-surface" />
+              ))}
+            </div>
+          </>
         )}
 
         {globalError && (
@@ -81,28 +90,22 @@ export default function Discover() {
           </div>
         )}
 
-        {globalTop && globalTop.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {globalTop.map((album) => (
-              <AlbumCard key={album.spotifyAlbumId} album={album} />
-            ))}
-          </div>
+        {!globalLoading && !globalError && (
+          <HorizontalShelf
+            albums={topAlbums}
+            title="Your Top Albums"
+            subtitle="· Most listened last 4 weeks"
+          />
         )}
       </section>
 
       {/* Your Recent Plays */}
       {recentAlbums.length > 0 && (
-        <section>
-          <div className="flex items-baseline gap-2 mb-4">
-            <h2 className="text-xl font-black text-vinyl-text">Your Recent Plays</h2>
-            <span className="text-xs text-vinyl-muted">· From your Spotify history</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {recentAlbums.map((album) => (
-              <AlbumCard key={album.spotifyAlbumId} album={album} />
-            ))}
-          </div>
-        </section>
+        <HorizontalShelf
+          albums={recentAlbums}
+          title="Your Recent Plays"
+          subtitle="· From your Spotify history"
+        />
       )}
     </div>
   );

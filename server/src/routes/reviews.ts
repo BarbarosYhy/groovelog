@@ -7,7 +7,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 const router = Router();
 
 const reviewSchema = z.object({
-  reviewableType: z.enum(['album', 'playlist']),
+  reviewableType: z.enum(['album', 'playlist', 'track']),
   reviewableId: z.string(),
   rating: z.number().min(0.5).max(5).multipleOf(0.5),
   bodyText: z.string().max(5000).optional(),
@@ -84,6 +84,30 @@ router.get('/mine', requireAuth, async (req: AuthRequest, res: Response) => {
     });
     if (!review) { res.status(404).json({ error: 'No review found' }); return; }
     res.json(review);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Returns my ratings for a set of tracks: { [trackId]: { reviewId, rating } }
+router.get('/my-tracks', requireAuth, async (req: AuthRequest, res: Response) => {
+  const ids = (req.query.ids as string) ?? '';
+  if (!ids) { res.json({}); return; }
+  const trackIds = ids.split(',').slice(0, 50);
+  try {
+    const reviews = await prisma.review.findMany({
+      where: {
+        userId: req.user!.id,
+        reviewableType: 'track',
+        reviewableId: { in: trackIds },
+      },
+      select: { id: true, reviewableId: true, rating: true },
+    });
+    const map: Record<string, { reviewId: string; rating: number }> = {};
+    for (const r of reviews) {
+      map[r.reviewableId] = { reviewId: r.id, rating: r.rating };
+    }
+    res.json(map);
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }

@@ -19,6 +19,8 @@ export const spotifyApi = {
     api.get('/api/spotify/recently-played').then((r) => r.data as Array<{
       albumId: string;
       albumName: string;
+      coverUrl: string;
+      artist: string;
       playedAt: string;
     }>),
 };

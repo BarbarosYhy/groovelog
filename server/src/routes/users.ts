@@ -1,8 +1,36 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../db/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+router.get('/:username/want-list', async (req: Request, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true },
+    });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+    const items = await prisma.listeningList.findMany({
+      where: { userId: user.id, status: 'want' },
+      include: {
+        album: {
+          select: {
+            spotifyAlbumId: true,
+            name: true,
+            artist: true,
+            coverUrl: true,
+            releaseYear: true,
+          },
+        },
+      },
+      orderBy: { addedAt: 'desc' },
+    });
+    res.json(items.map((i) => ({ ...i.album, addedAt: i.addedAt })));
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 router.get('/:username', async (req: AuthRequest, res: Response) => {
   try {

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
 import { spotifyApi } from '../api/spotify';
 import ReviewCard from '../components/ReviewCard';
-import AlbumCard from '../components/AlbumCard';
+import HorizontalShelf from '../components/HorizontalShelf';
 import { Link } from 'react-router-dom';
 
 export default function Home() {
@@ -23,7 +23,7 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const recentAlbums = (recentlyPlayed ?? []).slice(0, 6).map((r) => ({
+  const recentAlbums = (recentlyPlayed ?? []).slice(0, 15).map((r) => ({
     spotifyAlbumId: r.albumId,
     name: r.albumName,
     artist: r.artist,
@@ -46,17 +46,11 @@ export default function Home() {
     <div className="space-y-6">
       {/* Your Recent Plays — only shown when Spotify is connected */}
       {spotifyConnected && recentAlbums.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-lg font-bold text-vinyl-text">Your Recent Plays</h2>
-            <span className="text-xs text-vinyl-muted">· From your Spotify</span>
-          </div>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-            {recentAlbums.map((album) => (
-              <AlbumCard key={album.spotifyAlbumId} album={album} />
-            ))}
-          </div>
-        </div>
+        <HorizontalShelf
+          albums={recentAlbums}
+          title="Your Recent Plays"
+          subtitle="· From your Spotify"
+        />
       )}
 
       <div className="flex items-center justify-between">

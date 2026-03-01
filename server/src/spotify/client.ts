@@ -23,6 +23,14 @@ async function getSpotifyToken(): Promise<string> {
   return cachedToken;
 }
 
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  track_number: number;
+  duration_ms: number;
+  disc_number: number;
+}
+
 export interface SpotifyAlbum {
   id: string;
   name: string;
@@ -86,6 +94,16 @@ export async function getTrendingAlbums(limit = 6): Promise<SpotifyAlbum[]> {
     if (albums.length >= limit) break;
   }
   return albums;
+}
+
+export async function getAlbumTracks(albumId: string): Promise<SpotifyTrack[]> {
+  const token = await getSpotifyToken();
+  const res = await fetch(`https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Spotify tracks fetch failed: ${res.status}`);
+  const data = (await res.json()) as { items: SpotifyTrack[] };
+  return data.items;
 }
 
 export function normalizeAlbum(album: SpotifyAlbum) {

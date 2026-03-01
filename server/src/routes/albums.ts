@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../db/client';
-import { searchAlbums, getAlbum, normalizeAlbum, getTrendingAlbums } from '../spotify/client';
+import { searchAlbums, getAlbum, normalizeAlbum, getTrendingAlbums, getAlbumTracks } from '../spotify/client';
 
 const router = Router();
 
@@ -25,6 +25,21 @@ router.get('/trending', async (req: Request, res: Response) => {
     res.json(albums.map(normalizeAlbum));
   } catch {
     res.status(502).json({ error: 'Failed to fetch trending albums' });
+  }
+});
+
+router.get('/:id/tracks', async (req: Request, res: Response) => {
+  try {
+    const tracks = await getAlbumTracks(req.params.id);
+    res.json(tracks.map((t) => ({
+      id: t.id,
+      name: t.name,
+      trackNumber: t.track_number,
+      durationMs: t.duration_ms,
+      discNumber: t.disc_number,
+    })));
+  } catch {
+    res.status(502).json({ error: 'Failed to fetch tracks' });
   }
 });
 

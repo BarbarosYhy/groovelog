@@ -15,4 +15,12 @@ export const reviewsApi = {
     api.post(`/api/reviews/${id}/like`).then((r) => r.data),
   addComment: (data: { reviewId: string; bodyText: string }) =>
     api.post('/api/comments', data).then((r) => r.data),
+  getMyTrackRatings: (trackIds: string[]) =>
+    api.get(`/api/reviews/my-tracks?ids=${trackIds.join(',')}`).then(
+      (r) => r.data as Record<string, { reviewId: string; rating: number }>
+    ),
+  rateTrack: (trackId: string, rating: number) =>
+    api.post('/api/reviews', { reviewableType: 'track', reviewableId: trackId, rating }).then((r) => r.data),
+  updateTrackRating: (reviewId: string, rating: number) =>
+    api.put(`/api/reviews/${reviewId}`, { rating }).then((r) => r.data),
 };

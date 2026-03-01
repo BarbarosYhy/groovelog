@@ -27,6 +27,8 @@ model User {
   spotifyAccessToken  String?
   spotifyRefreshToken String?
   spotifyTokenExpiry  DateTime?
+  friendshipsInitiated Friendship[] @relation("FriendshipRequester")
+  friendshipsReceived  Friendship[] @relation("FriendshipAddressee")
 }
 
 model Follow {
@@ -36,6 +38,17 @@ model Follow {
   follower    User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
   following   User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
   @@id([followerId, followingId])
+}
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String   // "pending" | "accepted"
+  createdAt   DateTime @default(now())
+  requester   User     @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User     @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  @@unique([requesterId, addresseeId])
 }
 
 model AlbumCache {
