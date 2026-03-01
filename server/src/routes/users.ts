@@ -74,6 +74,28 @@ router.get('/:username/reviews', async (req: Request, res: Response) => {
   }
 });
 
+// Spotify removed genres from all artist endpoints in late 2024 for standard-tier apps.
+// We fetch top artist *names* from Spotify, then look up genres via MusicBrainz (free, no key).
+async function getMbGenres(artistName: string): Promise<string[]> {
+  try {
+    const url = `https://musicbrainz.org/ws/2/artist?query=artist:${encodeURIComponent(artistName)}&limit=1&fmt=json`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Groovelog/1.0 (music-review-app; contact@groovelog.app)' },
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      artists?: Array<{ tags?: Array<{ count: number; name: string }> }>;
+    };
+    const tags = data.artists?.[0]?.tags ?? [];
+    return tags
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((t) => t.name);
+  } catch {
+    return [];
+  }
+}
+
 router.get('/:username/top-genres', async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
@@ -91,47 +113,50 @@ router.get('/:username/top-genres', async (req: Request, res: Response) => {
       return;
     }
 
+    // Get top artists from Spotify — returns simplified objects (name + id, no genres since 2024)
     const timeRanges: Array<{ range: string; label: string }> = [
       { range: 'short_term', label: 'last 4 weeks' },
       { range: 'medium_term', label: 'last 6 months' },
       { range: 'long_term', label: 'all time' },
     ];
 
-    // Use /me/top/artists directly — returns full artist objects with genres embedded.
-    // This is more reliable than top/tracks → batch /artists, since top artists are
-    // well-known enough that Spotify has genre tags for them.
-    let topArtists: Array<{ genres: string[] }> = [];
+    let artistNames: string[] = [];
     let timeLabel = 'last 4 weeks';
 
     for (const { range, label } of timeRanges) {
       const artistsRes = await fetch(
-        `https://api.spotify.com/v1/me/top/artists?limit=50&time_range=${range}`,
+        `https://api.spotify.com/v1/me/top/artists?limit=20&time_range=${range}`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       if (!artistsRes.ok) { res.json({ connected: false }); return; }
 
       const artistsData = (await artistsRes.json()) as {
-        items: Array<{ genres: string[] }>;
+        items: Array<{ name: string }>;
       };
 
       if (artistsData.items.length > 0) {
-        topArtists = artistsData.items;
+        artistNames = artistsData.items.slice(0, 10).map((a) => a.name);
         timeLabel = label;
         break;
       }
     }
 
-    if (topArtists.length === 0) { res.json({ connected: true, genres: [], timeLabel: 'last 4 weeks' }); return; }
+    if (artistNames.length === 0) { res.json({ connected: true, genres: [], timeLabel }); return; }
+
+    // Look up genres via MusicBrainz for the top artists in parallel
+    const genreResults = await Promise.all(artistNames.slice(0, 8).map(getMbGenres));
 
     const counts: Record<string, number> = {};
-    for (const artist of topArtists) {
-      for (const genre of (artist.genres ?? [])) {
-        counts[genre] = (counts[genre] ?? 0) + 1;
+    genreResults.forEach((genres, i) => {
+      // Weight earlier artists more (position 0 = weight 8, position 7 = weight 1)
+      const weight = artistNames.length - i;
+      for (const genre of genres) {
+        counts[genre] = (counts[genre] ?? 0) + weight;
       }
-    }
+    });
 
     const total = Object.values(counts).reduce((s, v) => s + v, 0);
-    if (total === 0) { res.json({ connected: true, genres: [] }); return; }
+    if (total === 0) { res.json({ connected: true, genres: [], timeLabel }); return; }
 
     const top5 = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
