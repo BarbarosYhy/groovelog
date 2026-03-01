@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users';
+import { albumsApi } from '../api/albums';
 import ReviewCard from '../components/ReviewCard';
+import AlbumCard from '../components/AlbumCard';
 import { Link } from 'react-router-dom';
 
 export default function Home() {
@@ -12,12 +14,33 @@ export default function Home() {
     enabled: !!user,
   });
 
+  const { data: trending } = useQuery({
+    queryKey: ['trending'],
+    queryFn: () => albumsApi.getTrending(6),
+    staleTime: 5 * 60 * 1000,
+  });
+
   if (isLoading) return <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-40 animate-pulse rounded-xl bg-vinyl-surface" />)}</div>;
 
   return (
     <div className="space-y-6">
+      {/* This Week — most reviewed albums in the past 7 days */}
+      {trending && trending.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-lg font-bold text-vinyl-text">This Week</h2>
+            <span className="text-xs text-vinyl-muted">· Most reviewed</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+            {trending.map((album: any) => (
+              <AlbumCard key={album.spotifyAlbumId} album={album} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-vinyl-text">Your Feed</h1>
+        <h2 className="text-lg font-bold text-vinyl-text">Your Feed</h2>
         <Link to="/discover" className="text-sm text-vinyl-amber hover:underline">Discover albums →</Link>
       </div>
 
